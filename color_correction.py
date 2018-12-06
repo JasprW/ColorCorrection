@@ -151,10 +151,10 @@ if __name__ == '__main__':
     # print ('是否为文件:', path.isfile(sys.argv[1]))
     if len(sys.argv) == 2:
         file_path = sys.argv[1]
-        if path.isfile(file_path):
-            file_name = path.splitext(path.basename(file_path))[0]
-            file_ext = path.splitext(path.basename(file_path))[1]
-            dir_name = path.dirname(file_path)
+        if os.path.isfile(file_path):
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            file_ext = os.path.splitext(os.path.basename(file_path))[1]
+            dir_name = os.path.dirname(file_path)
         else:
             print ("未找到文件")
     else:
@@ -194,7 +194,6 @@ if __name__ == '__main__':
     if not os.path.isdir(output_dir):
         os.makedirs(dir_name + '/output')
     img = cv2.imread(file_path)
-    cv2.imwrite(output_dir + '/' + file_name + '-corrected' +
-                file_ext, corrected_img[..., [2, 1, 0]])
+    cv2.imwrite(output_dir + '/' + file_name + '-corrected' + file_ext, corrected_img[..., [2, 1, 0]])
 
     print("Color correction complete!")

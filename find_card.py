@@ -1,10 +1,9 @@
 # -*- coding:utf-8 -*-
 import cv2
 import numpy as np
-import math
 import os
 import sys
-from color_detect import *
+# from color_detect import *
 
 
 def SortPoint(points):
@@ -98,7 +97,6 @@ def find_corner(img):
     candidate_contours.append(contours[0])
 
     for i in range(1, 12):
-        r = cv2.boundingRect(contours[i])
         if is_duplicate(contours[i], candidate_contours):
             continue
         else:
@@ -219,6 +217,5 @@ if __name__ == '__main__':
     # img = cv2.imread('images/IMG_0793.jpg', 1)
     corner_points = find_corner(img)
     card = get_color_card(img, corner_points)
-    cv2.imwrite(dir_name + '/' + file_name + '-card' +
-                file_ext, card)
+    cv2.imwrite(dir_name + '/' + file_name + '-card' + file_ext, card)
     # image_show('', card)

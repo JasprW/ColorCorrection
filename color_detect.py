@@ -58,8 +58,7 @@ def _combine_rect(h_lines, v_lines):
 
     for y_index in range(len(y_axis) - 1):
         for x_index in range(len(x_axis) - 1):
-            area = abs((y_axis[y_index + 1] - y_axis[y_index])
-                       * (x_axis[x_index + 1] - x_axis[x_index]))
+            area = abs((y_axis[y_index + 1] - y_axis[y_index]) * (x_axis[x_index + 1] - x_axis[x_index]))
             rects.append([(y_axis[y_index], x_axis[x_index],
                            y_axis[y_index + 1], x_axis[x_index + 1]), area])
     # 按面积降序排序
