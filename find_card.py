@@ -2,10 +2,17 @@
 import cv2
 import numpy as np
 import math
+import os
+import sys
 from color_detect import *
 
 
 def SortPoint(points):
+    """
+    对四个定位点进行排序，排序后顺序分别为左上、右上、左下、右下
+    :param points: 待排序的点集
+    :return: 排序完成的点集
+    """
     sp = sorted(points, key=lambda x: (int(x[1]), int(x[0])))
     if sp[0][0] > sp[1][0]:
         sp[0], sp[1] = sp[1], sp[0]
@@ -106,13 +113,12 @@ def find_corner(img):
         for i in range(4):
             cv2.drawContours(img_dc, candidate_contours, i,
                              (0, 0, 255), 2, cv2.LINE_AA)
-        image_show("positioning", img_dc)
+        # image_show("positioning", img_dc)
         location_points = []
 
         for i in range(0, 4):
             pos_rect = cv2.minAreaRect(candidate_contours[i])
             location_points.append(pos_rect[0])
-
 
         # 对定位点排序，排序后顺序为：左上，右上，左下，右下
         location_points = SortPoint(location_points)
@@ -197,8 +203,22 @@ def get_color_card(img, points):
 
 
 if __name__ == '__main__':
-    img = cv2.imread('images/Image5.jpg', 1)
+    if len(sys.argv) == 2:
+        file_path = sys.argv[1]
+        if os.path.isfile(file_path):
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            file_ext = os.path.splitext(os.path.basename(file_path))[1]
+            dir_name = os.path.dirname(file_path)
+        else:
+            print ("未找到文件")
+    else:
+        print("参数数量错误")
+
+    # img = cv2.imread('images/Image5.jpg', 1)
+    img = cv2.imread(file_path)
     # img = cv2.imread('images/IMG_0793.jpg', 1)
     corner_points = find_corner(img)
     card = get_color_card(img, corner_points)
-    image_show('', card)
+    cv2.imwrite(dir_name + '/' + file_name + '-card' +
+                file_ext, card)
+    # image_show('', card)

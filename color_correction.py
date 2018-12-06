@@ -1,7 +1,9 @@
 from color_detect import *
-# from find_card import *
+from find_card import *
 import numpy as np
 import cv2
+import sys
+import os
 
 std_color_file = 'color_value.csv'
 real_color_file = 'real_value.csv'
@@ -25,7 +27,7 @@ def get_polynomial(R, G, B):
     """
     根据RGB值生成多项式
     :param rgb: 像素点的RGB值,格式(r,g,b)
-    :return: 返回构造的多项式，（R, G, B, RG, RB, BG, R*R, B*B, G*G, R*G*G, R*B*B, G*B*B, B*R*R, B*G*G, R*G*B）
+    :return: 返回构造的多项式
     """
     R = int(R)
     G = int(G)
@@ -39,33 +41,8 @@ def get_polynomial(R, G, B):
 
     # 十五项多项式
     return [R, G, B,
-        R * G, R * B, B * G, R * R, B * B, G * G,
-        R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
-
-    # 十六项多项式
-    # return [R, G, B,
-    #     R * G, R * B, B * G, R * R, B * B, G * G,
-    #     R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G),
-    #     R * G * B]
-
-
-def get_polynomial_TEST(R, G, B):
-    """
-    根据RGB值生成多项式
-    :param rgb: 像素点的RGB值,格式(r,g,b)
-    :return: 返回构造的多项式，（R, G, B, RG, RB, BG, R*R, B*B, G*G, R*G*G, R*B*B, G*B*B, B*R*R, B*G*G, R*G*B）
-    """
-
-    # 十项多项式（灰度偏淡）
-    # return [1, R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
-
-    # 九项多项式（灰度偏深）
-    # return [R, G, B, R*G, R*B, B*G, R*R, B*B, G*G]
-
-    # 十五项多项式
-    return [R, G, B,
-        R * G, R * B, B * G, R * R, B * B, G * G,
-        R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
+            R * G, R * B, B * G, R * R, B * B, G * G,
+            R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
 
     # 十六项多项式
     # return [R, G, B,
@@ -84,8 +61,6 @@ def img_digitization(image_data):
     for raw_data in image_data:
         for bgr in raw_data:
             data.append(get_polynomial(bgr[2], bgr[1], bgr[0]))
-    # print(image_data.shape)
-
     data = np.array(data)
     return data.T
 
@@ -98,30 +73,9 @@ def create_inputData(color_data):
     """
     data = []
     for bgr in color_data:
-        # print("bgr: \n", bgr)
         data.append(get_polynomial(bgr[2], bgr[1], bgr[0]))
 
     data = np.array(data)
-    # print("input_data:\n", data.T)
-
-    return data.T
-
-
-def create_inputData_TEST(color_data):
-    """
-    [TEST ONLY]
-    :param color_data: 待校正的色卡颜色数据，shape:(24, 3)
-    :return: 返回线性回归需要的输入矩阵, shape:(15, 24)
-    """
-    data = []
-    # print(color_data)
-    for rgb in color_data:
-        print(rgb[0], rgb[1], rgb[2])
-        data.append(get_polynomial_TEST(rgb[0], rgb[1], rgb[2]))
-
-    data = np.array(data)
-    # print("input_data:\n", data.T)
-
     return data.T
 
 
@@ -188,13 +142,23 @@ def recorrect_color(raw_img, A):
 
     data = np.array(data)
     data = data.transpose((1, 0))
-    new_img = data.reshape((w, h, 3))
-    cv2.imwrite('output/corrected.jpg', new_img[..., [2, 1, 0]])
-    # image_show('corrected image', new_img)
-    return new_img
+    corrected_img = data.reshape((w, h, 3))
+
+    return corrected_img
 
 
 if __name__ == '__main__':
+    # print ('是否为文件:', path.isfile(sys.argv[1]))
+    if len(sys.argv) == 2:
+        file_path = sys.argv[1]
+        if path.isfile(file_path):
+            file_name = path.splitext(path.basename(file_path))[0]
+            file_ext = path.splitext(path.basename(file_path))[1]
+            dir_name = path.dirname(file_path)
+        else:
+            print ("未找到文件")
+    else:
+        print("参数数量错误")
 
     # 载入标准色卡数据
     std_matrix = get_stdColor_value()
@@ -202,38 +166,35 @@ if __name__ == '__main__':
 
     # 载入测试色卡图像，生成回归输入数据
     # img = cv2.imread('images/biased.jpg', 1)
-    img = cv2.imread('images/Image5.jpg', 1)
+    # img = cv2.imread('images/Image5.jpg', 1)
+    img = cv2.imread(file_path, 1)
 
     # original
     # _, color_img = img_split(img)
     # input_data = create_inputData(color_img)
     # print("input_data:\n", input_data.shape)
 
-    """
-    校色测试时注释
-
-    # 使用extract()获取各色块中心颜色
+    # 定位色卡并进行透视变换为正视图
     points = find_corner(img)
-
     color_card = get_color_card(img, points)
     image_show("card", color_card)
+
+    # 使用extract_color()获取各色块中心颜色
     color_data = extract_color(color_card)
     input_data = create_inputData(color_data)
-    """
 
-    input_data = create_inputData_TEST(real_matrix)
+    A = get_A_matrix(input_data, std_matrix)
 
-    # 计算回归方程的系数矩阵,input_data: (15, 24), std_matrix: (3, 24)
-    if input_data.shape == (15, 24) and std_matrix.shape == (3, 24):
-        A = get_A_matrix(input_data, std_matrix)
+    # 颜色校正
+    img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
+    corrected_img = recorrect_color(img, A)
+    # cv2.imwrite('output/corrected.jpg', corrected_img[..., [2, 1, 0]])
 
-        # 颜色校正
-        # image_show("", img)
-        img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
-        recorrect_color(img, A)
-        print("Color correction complete!")
+    output_dir = dir_name + '/output'
+    if not os.path.isdir(output_dir):
+        os.makedirs(dir_name + '/output')
+    img = cv2.imread(file_path)
+    cv2.imwrite(output_dir + '/' + file_name + '-corrected' +
+                file_ext, corrected_img[..., [2, 1, 0]])
 
-    else:
-        print("input_data.shape: ", input_data.shape)
-        print("std_matrix.shape: ", std_matrix.shape)
-        print("ERROR!!")
+    print("Color correction complete!")
