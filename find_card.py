@@ -104,7 +104,7 @@ def find_corner(img):
 
     # print(len(candidate_contours))
 
-    # 选取第2~5个轮廓作为定位点（最大的为图像外围轮廓）
+    # 选取第1~4个轮廓作为定位点
     if len(candidate_contours) >= 4:
         candidate_contours = candidate_contours[0:4]
         # print(contours)

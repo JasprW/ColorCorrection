@@ -108,7 +108,7 @@ def extract_color(color_card):
     img = color_card.copy()
     color_matrix = []
     pos_hori = [34, 100, 166, 232, 298, 364]
-    pos_vert = [44, 116, 190, 292]
+    pos_vert = [44, 116, 190, 260]
     for i in pos_vert:
         for j in pos_hori:
             data = img[i - 2:i + 2, j - 2:j + 2]

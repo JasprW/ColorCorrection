@@ -82,7 +82,7 @@ def create_inputData(color_data):
 def get_stdColor_value():
     """
     构造标准色卡的R,G,B矩阵，shape: (3 , 24)
-    :return: 返回标准色卡的R,G,B值，用矩阵存储
+    :return: 返回标准色卡的色值，用矩阵存储[B, G, R]
     """
     color_dict = {}
     std_matrix = []
@@ -97,24 +97,6 @@ def get_stdColor_value():
     # print(std_matrix.shape)
     # print("std_matrix:\n", std_matrix)
     return std_matrix.T
-
-
-def get_realColor_value():
-    """
-    [TEST ONLY]构造实际拍摄的照片中色卡的R,G,B矩阵，shape: (3 , 24)
-    :return: 返回实际颜色的R,G,B值，用矩阵存储
-    """
-    color_dict = {}
-    std_matrix = []
-    color_value_list = np.loadtxt(real_color_file, dtype=np.str, delimiter=',')
-
-    for element in color_value_list:
-        color_dict[element[1]] = (
-            int(element[2]), int(element[3]), int(element[4]))
-        std_matrix.append([int(element[2]), int(element[3]), int(element[4])])
-
-    std_matrix = np.array(std_matrix)
-    return std_matrix
 
 
 def recorrect_color(raw_img, A):
@@ -162,22 +144,17 @@ if __name__ == '__main__':
 
     # 载入标准色卡数据
     std_matrix = get_stdColor_value()
-    real_matrix = get_realColor_value()
+    # real_matrix = get_realColor_value()
 
     # 载入测试色卡图像，生成回归输入数据
     # img = cv2.imread('images/biased.jpg', 1)
     # img = cv2.imread('images/Image5.jpg', 1)
     img = cv2.imread(file_path, 1)
 
-    # original
-    # _, color_img = img_split(img)
-    # input_data = create_inputData(color_img)
-    # print("input_data:\n", input_data.shape)
-
     # 定位色卡并进行透视变换为正视图
     points = find_corner(img)
     color_card = get_color_card(img, points)
-    image_show("card", color_card)
+    # image_show("card", color_card)
 
     # 使用extract_color()获取各色块中心颜色
     color_data = extract_color(color_card)
