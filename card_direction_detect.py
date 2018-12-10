@@ -39,13 +39,7 @@ def is_upsideDown_and_mirrorred(color_card):
     bl = real_color[18]
     br = real_color[23]
 
-    # if ul[0] > bl[0] > ur[0] and ul[2] > br[2] > ur[2]:
-    #     return True
-    # else:
-    #     return False
-
-    print(ul, ur, bl, br)
-    if ul.all() > bl.all() and br.all() > ur.all():
+    if ul[0] > bl[0] > ur[0] and ul[2] > br[2] > ur[2]:
         return True
     else:
         return False
