@@ -1,4 +1,9 @@
-from color_detect import *
+# @Author: Jaspr
+# @Date:   2018-11-29T10:11:16+08:00
+# @Email:  wang@jaspr.me
+# @Last modified by:   Jaspr
+# @Last modified time: 2018-12-13, 15:32:37
+
 from find_card import *
 import numpy as np
 import cv2
@@ -6,7 +11,26 @@ import sys
 import os
 
 std_color_file = 'color_value.csv'
-real_color_file = 'real_value.csv'
+# real_color_file = 'real_value.csv'
+
+
+def extract_color(color_card):
+    """
+    获取实际拍摄的照片中色卡各颜色色值
+    :param color_card: 透视校正完成的色卡图片
+    :return: 色卡中的颜色色值，以矩阵格式存储，color_matrix，shape: (3 , 24)
+    """
+    img = color_card.copy()
+    color_matrix = []
+    pos_hori = [34, 100, 166, 232, 298, 364]
+    pos_vert = [44, 116, 190, 260]
+    for i in pos_vert:
+        for j in pos_hori:
+            data = img[i - 3:i + 3, j - 3:j + 3]
+            b, g, r = cv2.split(data)
+            color_matrix.append([int(np.mean(b)), int(np.mean(g)), int(np.mean(r))])
+    color_matrix = np.array(color_matrix)
+    return color_matrix
 
 
 def get_A_matrix(x, y):
@@ -130,7 +154,6 @@ def recorrect_color(raw_img, A):
 
 
 if __name__ == '__main__':
-    # print ('是否为文件:', path.isfile(sys.argv[1]))
     if len(sys.argv) == 2:
         file_path = sys.argv[1]
         if os.path.isfile(file_path):
@@ -138,7 +161,7 @@ if __name__ == '__main__':
             file_ext = os.path.splitext(os.path.basename(file_path))[1]
             dir_name = os.path.dirname(file_path)
         else:
-            print ("未找到文件")
+            print("未找到文件")
     else:
         print("参数数量错误")
 
@@ -153,24 +176,27 @@ if __name__ == '__main__':
 
     # 定位色卡并进行透视变换为正视图
     points = find_corner(img)
-    color_card = get_color_card(img, points)
-    # image_show("card", color_card)
+    if points == []:
+        print("未找到定位点！")
+    else:
+        color_card = get_color_card(img, points)
+        # image_show("card", color_card)
 
-    # 使用extract_color()获取各色块中心颜色
-    color_data = extract_color(color_card)
-    input_data = create_inputData(color_data)
+        # 使用extract_color获取各色块中心颜色
+        color_data = extract_color(color_card)
+        input_data = create_inputData(color_data)
 
-    A = get_A_matrix(input_data, std_matrix)
+        A = get_A_matrix(input_data, std_matrix)
 
-    # 颜色校正
-    img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
-    corrected_img = recorrect_color(img, A)
-    # cv2.imwrite('output/corrected.jpg', corrected_img[..., [2, 1, 0]])
+        # 颜色校正
+        img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
+        corrected_img = recorrect_color(img, A)
+        # cv2.imwrite('output/corrected.jpg', corrected_img[..., [2, 1, 0]])
 
-    output_dir = dir_name + '/output'
-    if not os.path.isdir(output_dir):
-        os.makedirs(dir_name + '/output')
-    img = cv2.imread(file_path)
-    cv2.imwrite(output_dir + '/' + file_name + '-corrected' + file_ext, corrected_img[..., [2, 1, 0]])
+        output_dir = dir_name + '/output'
+        if not os.path.isdir(output_dir):
+            os.makedirs(dir_name + '/output')
+        img = cv2.imread(file_path)
+        cv2.imwrite(output_dir + '/' + file_name + '-corrected' + file_ext, corrected_img[..., [2, 1, 0]])
 
-    print("Color correction complete!")
+        print("Color correction complete!")
