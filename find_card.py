@@ -1,9 +1,20 @@
-# -*- coding:utf-8 -*-
+# @Author: Jaspr
+# @Date:   2018-11-29T13:19:21+08:00
+# @Email:  wang@jaspr.me
+# @Last modified by:   Jaspr
+# @Last modified time: 2018-12-13, 22:05:21
+
 import cv2
 import numpy as np
 import os
 import sys
-# from color_detect import *
+
+
+def image_show(name, img):
+    cv2.namedWindow(name, cv2.WINDOW_NORMAL)
+    cv2.imshow(name, img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 def SortPoint(points):
@@ -31,9 +42,10 @@ def find_corner(img):
     # src = cv2.imread("IMG_0793.jpg")
     # img = cv2.resize(img, (2000, 1500), interpolation=cv2.INTER_CUBIC)
     gray = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
-    _, binary = cv2.threshold(
-        gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
+    # TODO: 选取合适的二值化参数
+    # _, binary = cv2.threshold(
+    #     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
     # image_show("binary", binary)
 
     blur = cv2.GaussianBlur(binary, (5, 5), 0)
@@ -43,6 +55,9 @@ def find_corner(img):
 
     _, contours, hierarchy = cv2.findContours(
         edges.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(contours) == 0:
+        return []
 
     hierarchy = hierarchy[0]
     found = []
@@ -60,10 +75,10 @@ def find_corner(img):
         if w and h:
             rate = min(w, h) / max(w, h)
             # 选取方形轮廓
-            if (rate >= 0.75 and w < img.shape[1] / 4 and h < img.shape[0] / 4):
+            if (rate >= 0.7 and cv2.contourArea(contours[i]) > 100):
 
-                # cv2.drawContours(img_test, contours, i,
-                #                  (255, 255, 0), 2, cv2.LINE_AA)
+                cv2.drawContours(img_test, contours, i,
+                                 (255, 255, 0), 5, cv2.LINE_AA)
 
                 # 判断轮廓层级，筛选多层轮廓的外围轮廓
                 while hierarchy[k][2] != -1:
@@ -73,10 +88,14 @@ def find_corner(img):
                     if c == 3:
                         cv2.drawContours(img_test, contours, i,
                                          (255, 0, 0), 5, cv2.LINE_AA)
-                    if c >= 4:
+                        found.append(i)
+                    if c == 4:
                         cv2.drawContours(img_test, contours, i,
                                          (0, 0, 255), 5, cv2.LINE_AA)
-                        found.append(i)
+                        # found.append(i)
+                    if c >= 5:
+                        cv2.drawContours(img_test, contours, i,
+                                         (255, 0, 255), 5, cv2.LINE_AA)
                         continue
         else:
             continue
@@ -90,43 +109,48 @@ def find_corner(img):
     img_dc = img.copy()
 
     # 按轮廓面积从大到小排序
+    rng = max(len(temp_contours), 12)
     contours = sorted(
-        temp_contours, key=cv2.contourArea, reverse=True)[0:12]
+        temp_contours, key=cv2.contourArea, reverse=True)[0:rng]
 
     candidate_contours = []
     candidate_contours.append(contours[0])
 
-    for i in range(1, 12):
+    if len(contours) < 4:
+        return []
+
+    for i in range(1, rng):
         if is_duplicate(contours[i], candidate_contours):
             continue
         else:
             candidate_contours.append(contours[i])
 
     # print(len(candidate_contours))
-
-    # 选取第1~4个轮廓作为定位点
-    if len(candidate_contours) >= 4:
-        candidate_contours = candidate_contours[0:4]
-        # print(contours)
-        for i in range(4):
-            cv2.drawContours(img_dc, candidate_contours, i,
-                             (0, 0, 255), 2, cv2.LINE_AA)
-        # image_show("positioning", img_dc)
-        location_points = []
-
-        for i in range(0, 4):
-            pos_rect = cv2.minAreaRect(candidate_contours[i])
-            location_points.append(pos_rect[0])
-
-        # 对定位点排序，排序后顺序为：左上，右上，左下，右下
-        location_points = SortPoint(location_points)
-        return location_points
-    else:
+    if len(candidate_contours) < 4:
         print(len(contours))
         for i in range(len(contours)):
             cv2.drawContours(img_dc, contours, i,
                              (255, 255, 0), 2, cv2.LINE_AA)
-        # image_show("", img_dc)
+        # image_show("img_dc", img_dc)
+        return []
+
+    # 选取第1~4个轮廓作为定位点
+    candidate_contours = candidate_contours[0:4]
+    # print(contours)
+    # for i in range(4):
+    #     cv2.drawContours(img_dc, candidate_contours, i,
+    #                      (0, 0, 255), 2, cv2.LINE_AA)
+    # image_show("positioning", img_dc)
+    cv2.imwrite(dir_name + '/' + file_name + '-points' + file_ext, img_dc)
+    location_points = []
+
+    for i in range(0, 4):
+        pos_rect = cv2.minAreaRect(candidate_contours[i])
+        location_points.append(pos_rect[0])
+
+    # 对定位点排序，排序后顺序为：左上，右上，左下，右下
+    location_points = SortPoint(location_points)
+    return location_points
 
 
 def is_duplicate(c, contours):
@@ -208,7 +232,8 @@ if __name__ == '__main__':
             file_ext = os.path.splitext(os.path.basename(file_path))[1]
             dir_name = os.path.dirname(file_path)
         else:
-            print ("未找到文件")
+            print("未找到文件")
+            sys.exit()
     else:
         print("参数数量错误")
 
@@ -218,4 +243,5 @@ if __name__ == '__main__':
     corner_points = find_corner(img)
     card = get_color_card(img, corner_points)
     cv2.imwrite(dir_name + '/' + file_name + '-card' + file_ext, card)
+    print("Color card found!")
     # image_show('', card)
