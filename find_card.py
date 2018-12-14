@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-14, 16:04:35
+# @Last modified time: 2018-12-14, 16:06:50
 
 import cv2
 import numpy as np
@@ -39,9 +39,7 @@ def find_corner(img):
     :param img: 输入图像
     :return: 四个角点坐标
     """
-    # TODO: 亮度均衡，适应过曝和欠曝场景
     gray = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
-    # TODO: 选取合适的二值化参数
     # _, binary = cv2.threshold(
     #     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     # _, binary = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
