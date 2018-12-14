@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-13, 22:05:21
+# @Last modified time: 2018-12-14, 16:04:35
 
 import cv2
 import numpy as np
@@ -39,19 +39,23 @@ def find_corner(img):
     :param img: 输入图像
     :return: 四个角点坐标
     """
-    # src = cv2.imread("IMG_0793.jpg")
-    # img = cv2.resize(img, (2000, 1500), interpolation=cv2.INTER_CUBIC)
+    # TODO: 亮度均衡，适应过曝和欠曝场景
     gray = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
     # TODO: 选取合适的二值化参数
     # _, binary = cv2.threshold(
     #     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
-    # image_show("binary", binary)
+    # _, binary = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
+    blurred = cv2.GaussianBlur(gray, (11, 11), 0)
+    binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 11, 2)
 
-    blur = cv2.GaussianBlur(binary, (5, 5), 0)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    dilated = binary
+    dilated = cv2.dilate(dilated, kernel)
+
+    blur = cv2.GaussianBlur(dilated, (9, 9), 0)
     # edges = cv2.Canny(blur, 50, 150)
     edges = cv2.Canny(blur, 100, 300)
-    # image_show("", edges)
 
     _, contours, hierarchy = cv2.findContours(
         edges.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -75,10 +79,10 @@ def find_corner(img):
         if w and h:
             rate = min(w, h) / max(w, h)
             # 选取方形轮廓
-            if (rate >= 0.7 and cv2.contourArea(contours[i]) > 100):
+            if (rate >= 0.7 and cv2.contourArea(contours[i]) / (w * h) >= 0.8):
 
                 cv2.drawContours(img_test, contours, i,
-                                 (255, 255, 0), 5, cv2.LINE_AA)
+                                 (255, 255, 0), 1)
 
                 # 判断轮廓层级，筛选多层轮廓的外围轮廓
                 while hierarchy[k][2] != -1:
@@ -88,11 +92,11 @@ def find_corner(img):
                     if c == 3:
                         cv2.drawContours(img_test, contours, i,
                                          (255, 0, 0), 5, cv2.LINE_AA)
-                        found.append(i)
+                        # found.append(i)
                     if c == 4:
                         cv2.drawContours(img_test, contours, i,
                                          (0, 0, 255), 5, cv2.LINE_AA)
-                        # found.append(i)
+                        found.append(i)
                     if c >= 5:
                         cv2.drawContours(img_test, contours, i,
                                          (255, 0, 255), 5, cv2.LINE_AA)
@@ -100,7 +104,10 @@ def find_corner(img):
         else:
             continue
 
-    # image_show("test", img_test)
+    image_show("binary", binary)
+    image_show("", edges)
+    image_show("test", img_test)
+    # cv2.imwrite(dir_name + '/' + file_name + '-test' + file_ext, img_test)
 
     temp_contours = []
     for i in found:
@@ -109,17 +116,17 @@ def find_corner(img):
     img_dc = img.copy()
 
     # 按轮廓面积从大到小排序
-    rng = max(len(temp_contours), 12)
+    rng = max(len(temp_contours), 6)
     contours = sorted(
         temp_contours, key=cv2.contourArea, reverse=True)[0:rng]
-
-    candidate_contours = []
-    candidate_contours.append(contours[0])
 
     if len(contours) < 4:
         return []
 
-    for i in range(1, rng):
+    candidate_contours = []
+    candidate_contours.append(contours[0])
+
+    for i in range(rng):
         if is_duplicate(contours[i], candidate_contours):
             continue
         else:
@@ -141,7 +148,7 @@ def find_corner(img):
     #     cv2.drawContours(img_dc, candidate_contours, i,
     #                      (0, 0, 255), 2, cv2.LINE_AA)
     # image_show("positioning", img_dc)
-    cv2.imwrite(dir_name + '/' + file_name + '-points' + file_ext, img_dc)
+    # cv2.imwrite(dir_name + '/' + file_name + '-points' + file_ext, img_dc)
     location_points = []
 
     for i in range(0, 4):
@@ -232,16 +239,20 @@ if __name__ == '__main__':
             file_ext = os.path.splitext(os.path.basename(file_path))[1]
             dir_name = os.path.dirname(file_path)
         else:
-            print("未找到文件")
+            print("未找到文件！")
             sys.exit()
     else:
-        print("参数数量错误")
+        print("参数数量错误！")
 
     # img = cv2.imread('images/Image5.jpg', 1)
     img = cv2.imread(file_path)
     # img = cv2.imread('images/IMG_0793.jpg', 1)
     corner_points = find_corner(img)
+    if corner_points == []:
+        print("未找到定位点！")
+        cv2.imwrite('/Users/Jaspr/Desktop/fail/' + file_name + file_ext, img)
+        sys.exit()
     card = get_color_card(img, corner_points)
     cv2.imwrite(dir_name + '/' + file_name + '-card' + file_ext, card)
-    print("Color card found!")
+    print("找到色卡！")
     # image_show('', card)
