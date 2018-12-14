@@ -1,3 +1,9 @@
+# @Author: Jaspr
+# @Date:   2018-12-10, 15:29:33
+# @Email:  wang@jaspr.me
+# @Last modified by:   Jaspr
+# @Last modified time: 2018-12-12, 16:47:05
+
 from find_card import *
 from color_detect import extract_color
 import cv2

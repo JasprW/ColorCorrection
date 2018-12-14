@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-14, 16:06:50
+# @Last modified time: 2018-12-14, 16:13:12
 
 import cv2
 import numpy as np
@@ -102,10 +102,9 @@ def find_corner(img):
         else:
             continue
 
-    image_show("binary", binary)
-    image_show("", edges)
-    image_show("test", img_test)
-    # cv2.imwrite(dir_name + '/' + file_name + '-test' + file_ext, img_test)
+    # image_show("binary", binary)
+    # image_show("", edges)
+    # image_show("test", img_test)
 
     temp_contours = []
     for i in found:
