@@ -2,9 +2,10 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-17, 14:26:04
+# @Last modified time: 2018-12-17, 15:37:07
 
 from find_card import *
+from card_direction_detect import *
 import numpy as np
 import cv2
 import sys
@@ -180,6 +181,15 @@ if __name__ == '__main__':
         print("未找到定位点！")
     else:
         color_card = get_color_card(img, points)
+
+        # 检测色卡是否翻转、镜像或翻转+镜像，并对其进行相应变换
+        if is_upsideDown_and_mirrorred(color_card):
+            color_card = rotate(color_card)
+            color_card = cv2.flip(color_card, 1)
+        if is_upsideDown(color_card):
+            color_card = rotate(color_card)
+        if is_mirrored(color_card):
+            color_card = cv2.flip(color_card, 1)
         # image_show("card", color_card)
 
         # 使用extract_color获取各色块中心颜色
