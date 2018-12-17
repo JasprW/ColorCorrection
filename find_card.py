@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-17, 20:39:49
+# @Last modified time: 2018-12-18, 00:05:22
 
 import cv2
 import numpy as np
@@ -52,12 +52,24 @@ def is_duplicate(c, contours):
     return False
 
 
+def is_rect(contour):
+    rect = cv2.minAreaRect(contour)
+    w = rect[1][0]
+    h = rect[1][1]
+    if w and h:
+        rate = min(w, h) / max(w, h)
+    if cv2.contourArea(contour) / w * h < 0.8 or rate < 0.75:
+        return False
+    else:
+        return True
+
+
 def _intersection(a, b):
     """
     判断两个rect是否相交
     :param a: rect1
     :param b: rect2
-    :return: 是否相交，bool， 相交为True，不相交为False
+    :return: 是否相交，bool，相交为True，不相交为False
     """
     x = max(a[0], b[0])
     y = max(a[1], b[1])
@@ -80,25 +92,25 @@ def find_corner(img):
     # _, binary = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
 
     # 使用自适应二值化避免过曝影响定位点识别
-    blurred = cv2.GaussianBlur(gray, (11, 11), 0)
-    binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    blurred = cv2.GaussianBlur(gray, (13, 13), 0)
+    binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
                                    cv2.THRESH_BINARY, 11, 2)
 
-    # 使用膨胀让边界清晰，避免轮廓断裂
     # TODO: 尝试形态学开/闭运算解决边缘断开问题
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    dilated = binary
-    dilated = cv2.dilate(dilated, kernel)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    # dilated = binary
+    # dilated = cv2.dilate(dilated, kernel)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
-    blur = cv2.GaussianBlur(dilated, (9, 9), 0)
+    # blur = cv2.GaussianBlur(dilated, (9, 9), 0)
+    blur = binary
     edges = cv2.Canny(blur, 100, 300)
 
     _, contours, hierarchy = cv2.findContours(
         edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    if len(contours) == 0:
-        return []
-
+    # if len(contours) == 0:
+    #     return []
     hierarchy = hierarchy[0]
     found = []
 
@@ -113,35 +125,43 @@ def find_corner(img):
         w = rect[1][0]
         h = rect[1][1]
         if w and h:
-            rate = min(w, h) / max(w, h)
+            # rate = min(w, h) / max(w, h)
             # 选取方形轮廓
-            if (rate >= 0.7 and cv2.contourArea(contours[i]) / (w * h) >= 0.8):
+            if (is_rect(contours[i])):
                 # cv2.drawContours(img_test, contours, i,
                 #                  (255, 255, 0), 1)
 
                 # 判断轮廓层级，筛选多层轮廓的外围轮廓
+                # FIXME: 排除色块格子 [27]
                 while hierarchy[k][2] != -1:
                     k = hierarchy[k][2]
+                    # r = cv2.minAreaRect(contours[k])
+                    # if r[1][0] * r[1][1] < 100:
+                    #     break
                     c = c + 1
 
-                # 超过n层则判断为定位点，默认4层
-                if c == 3:
-                    cv2.drawContours(img_test, contours, i,
-                                     (255, 0, 0), 3, cv2.LINE_AA)
-                if c >= 4:
-                    cv2.drawContours(img_test, contours, i,
-                                     (0, 0, 255), 3, cv2.LINE_AA)
-                    if i not in found:
-                        found.append(i)
-                    continue
+                    # 超过n层则判断为定位点，默认4层
+                    # if c == 3:
+                    #     cv2.drawContours(img_test, contours, i,
+                    #                      (255, 0, 0), 3, cv2.LINE_AA)
+                    if c >= 4:
+                        cv2.drawContours(img_test, contours, i,
+                                         (0, 0, 255), 3, cv2.LINE_AA)
+                        if i not in found:
+                            found.append(i)
+                        break
         else:
             continue
+
+    # image_show("binary", binary)
+    # image_show("edges", edges)
+    # image_show("test", img_test)
 
     temp_contours = []
     for i in found:
         temp_contours.append(contours[i])
 
-    img_dc = img.copy()
+    # img_dc = img.copy()
 
     # 按轮廓面积从大到小排序
     contours = sorted(
@@ -164,7 +184,7 @@ def find_corner(img):
     if len(candidate_contours) < 4:
         # print("仅找到", len(candidate_contours), "个定位点")
         # image_show("binary", binary)
-        # image_show("", edges)
+        # image_show("edges", edges)
         # image_show("test", img_test)
         # for i in range(len(contours)):
         #     cv2.drawContours(img_dc, contours, i,
@@ -194,13 +214,13 @@ def get_color_card(img, points):
     sp = sort_point(points)
 
     # 查看定位点位置及顺序
-    # img_point_position = img.copy()
-    # for i in range(0, 4):
-    #     font = cv2.FONT_HERSHEY_SIMPLEX
-    #     cv2.circle(img_point_position, (np.float32(sp[i][0]), np.float32(
-    #         sp[i][1])), 20, (255, 255, 0), -1, cv2.LINE_AA)
-    #     cv2.putText(img_point_position, str(
-    #         i + 1), (np.int0(sp[i][0]) - 10, np.int0(sp[i][1]) + 10), font, 10, (255, 255, 0), 10)
+    img_point_position = img.copy()
+    for i in range(0, 4):
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.circle(img_point_position, (np.float32(sp[i][0]), np.float32(
+            sp[i][1])), 20, (255, 255, 0), -1, cv2.LINE_AA)
+        cv2.putText(img_point_position, str(
+            i + 1), (np.int0(sp[i][0]) - 10, np.int0(sp[i][1]) + 10), font, 10, (255, 255, 0), 10)
     # image_show("Points position", img_point_position)
 
     # 透视变换，转换为正视图
@@ -247,7 +267,10 @@ if __name__ == '__main__':
                         continue
 
                     card = get_color_card(img, corner_points)
-                    cv2.imwrite(dir_path + '/' + str(i) + '-card-test-2' + '.jpg', card)
+                    card_dir = dir_path + '/card-test-2'
+                    if not os.path.isdir(card_dir):
+                        os.makedirs(card_dir)
+                    cv2.imwrite(card_dir + '/' + str(i) + '-card-test-2' + '.jpg', card)
                     print('[' + str(i) + ']', '找到色卡！')
                     success_num += 1
             print('success:', success_num)
