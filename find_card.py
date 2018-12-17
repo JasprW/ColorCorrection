@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-14, 16:13:12
+# @Last modified time: 2018-12-17, 14:36:04
 
 import cv2
 import numpy as np
@@ -43,20 +43,22 @@ def find_corner(img):
     # _, binary = cv2.threshold(
     #     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     # _, binary = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
+
+    # 使用自适应二值化避免过曝影响定位点识别
     blurred = cv2.GaussianBlur(gray, (11, 11), 0)
     binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                    cv2.THRESH_BINARY, 11, 2)
 
+    # 使用膨胀让边界清晰，避免轮廓断裂
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     dilated = binary
     dilated = cv2.dilate(dilated, kernel)
 
     blur = cv2.GaussianBlur(dilated, (9, 9), 0)
-    # edges = cv2.Canny(blur, 50, 150)
     edges = cv2.Canny(blur, 100, 300)
 
     _, contours, hierarchy = cv2.findContours(
-        edges.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(contours) == 0:
         return []
@@ -121,7 +123,6 @@ def find_corner(img):
         return []
 
     candidate_contours = []
-    candidate_contours.append(contours[0])
 
     for i in range(rng):
         if is_duplicate(contours[i], candidate_contours):
@@ -131,21 +132,15 @@ def find_corner(img):
 
     # print(len(candidate_contours))
     if len(candidate_contours) < 4:
-        print(len(contours))
+        print(len(candidate_contours))
         for i in range(len(contours)):
             cv2.drawContours(img_dc, contours, i,
-                             (255, 255, 0), 2, cv2.LINE_AA)
-        # image_show("img_dc", img_dc)
+                             (255, 255, 0), 5, cv2.LINE_AA)
+        image_show("img_dc", img_dc)
         return []
 
     # 选取第1~4个轮廓作为定位点
     candidate_contours = candidate_contours[0:4]
-    # print(contours)
-    # for i in range(4):
-    #     cv2.drawContours(img_dc, candidate_contours, i,
-    #                      (0, 0, 255), 2, cv2.LINE_AA)
-    # image_show("positioning", img_dc)
-    # cv2.imwrite(dir_name + '/' + file_name + '-points' + file_ext, img_dc)
     location_points = []
 
     for i in range(0, 4):
@@ -164,6 +159,8 @@ def is_duplicate(c, contours):
     :param contours: 当前所有非重叠contours集合
     :return: contours中是否存在与c相交的轮廓，bool，重复轮廓返回True，不重复返回False
     """
+    if contours == []:
+        return False
     r = cv2.boundingRect(c)
     for contour in contours:
         rect = cv2.boundingRect(contour)
@@ -241,14 +238,18 @@ if __name__ == '__main__':
     else:
         print("参数数量错误！")
 
-    # img = cv2.imread('images/Image5.jpg', 1)
     img = cv2.imread(file_path)
-    # img = cv2.imread('images/IMG_0793.jpg', 1)
     corner_points = find_corner(img)
+
     if corner_points == []:
         print("未找到定位点！")
-        cv2.imwrite('/Users/Jaspr/Desktop/fail/' + file_name + file_ext, img)
+        # 将未识别到色卡的照片统一存储至fail文件夹
+        detect_fail_dir = dir_name + '/fail'
+        if not os.path.isdir(detect_fail_dir):
+            os.makedirs(detect_fail_dir)
+        cv2.imwrite(detect_fail_dir + '/' + file_name + file_ext, img)
         sys.exit()
+
     card = get_color_card(img, corner_points)
     cv2.imwrite(dir_name + '/' + file_name + '-card' + file_ext, card)
     print("找到色卡！")

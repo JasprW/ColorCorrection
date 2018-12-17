@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-13, 15:32:37
+# @Last modified time: 2018-12-17, 14:26:04
 
 from find_card import *
 import numpy as np
@@ -195,7 +195,7 @@ if __name__ == '__main__':
 
         output_dir = dir_name + '/output'
         if not os.path.isdir(output_dir):
-            os.makedirs(dir_name + '/output')
+            os.makedirs(output_dir)
         img = cv2.imread(file_path)
         cv2.imwrite(output_dir + '/' + file_name + '-corrected' + file_ext, corrected_img[..., [2, 1, 0]])
 
