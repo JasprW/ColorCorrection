@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-17, 15:37:07
+# @Last modified time: 2018-12-18, 13:38:30
 
 from find_card import *
 from card_direction_detect import *
@@ -11,8 +11,7 @@ import cv2
 import sys
 import os
 
-std_color_file = 'color_value.csv'
-# real_color_file = 'real_value.csv'
+std_color_file = 'color_value_test.csv'
 
 
 def extract_color(color_card):
@@ -78,7 +77,7 @@ def get_polynomial(R, G, B):
 
 def img_digitization(image_data):
     """
-
+    将图片电子化，生成色值矩阵
     :param image_data: 待校正的原始图片
     :return: 返回线性回归需要的输入矩阵, shape:(16, image_data.shape[0] * image_data.shape[1])
     """
@@ -171,14 +170,15 @@ if __name__ == '__main__':
     # real_matrix = get_realColor_value()
 
     # 载入测试色卡图像，生成回归输入数据
-    # img = cv2.imread('images/biased.jpg', 1)
-    # img = cv2.imread('images/Image5.jpg', 1)
     img = cv2.imread(file_path, 1)
 
     # 定位色卡并进行透视变换为正视图
     points = find_corner(img)
     if points == []:
-        print("未找到定位点！")
+        # 替换参数重试一次
+        points = find_corner(img, b=1)
+        if points == []:
+            print("未找到定位点！")
     else:
         color_card = get_color_card(img, points)
 
