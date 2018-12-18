@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-18, 00:05:22
+# @Last modified time: 2018-12-18, 10:56:47
 
 import cv2
 import numpy as np
@@ -80,10 +80,12 @@ def _intersection(a, b):
     return True
 
 
-def find_corner(img):
+def find_corner(img, b=2, debug=False):
     """
     获取色卡四角的定位点
     :param img: 输入图像
+    :param b: Adaptive Threshold 参数
+    :param debug: 是否使用debug模式，输出各步骤结果和图片
     :return: 四个角点坐标
     """
     gray = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
@@ -94,12 +96,10 @@ def find_corner(img):
     # 使用自适应二值化避免过曝影响定位点识别
     blurred = cv2.GaussianBlur(gray, (13, 13), 0)
     binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                   cv2.THRESH_BINARY, 11, 2)
+                                   cv2.THRESH_BINARY, 11, b)
 
-    # TODO: 尝试形态学开/闭运算解决边缘断开问题
+    # 形态学闭运算解决边缘断开问题
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    # dilated = binary
-    # dilated = cv2.dilate(dilated, kernel)
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
     # blur = cv2.GaussianBlur(dilated, (9, 9), 0)
@@ -145,23 +145,17 @@ def find_corner(img):
                     #     cv2.drawContours(img_test, contours, i,
                     #                      (255, 0, 0), 3, cv2.LINE_AA)
                     if c >= 4:
-                        cv2.drawContours(img_test, contours, i,
-                                         (0, 0, 255), 3, cv2.LINE_AA)
+                        # cv2.drawContours(img_test, contours, i,
+                        #                  (0, 0, 255), 3, cv2.LINE_AA)
                         if i not in found:
                             found.append(i)
                         break
         else:
             continue
 
-    # image_show("binary", binary)
-    # image_show("edges", edges)
-    # image_show("test", img_test)
-
     temp_contours = []
     for i in found:
         temp_contours.append(contours[i])
-
-    # img_dc = img.copy()
 
     # 按轮廓面积从大到小排序
     contours = sorted(
@@ -172,24 +166,24 @@ def find_corner(img):
 
     candidate_contours = []
 
-    for contour in contours:
-        if is_duplicate(contour, candidate_contours):
+    for c in contours:
+        if is_duplicate(c, candidate_contours):
             continue
         else:
-            candidate_contours.append(contour)
+            candidate_contours.append(c)
             if len(candidate_contours) >= 4:
                 break
 
     # print(len(candidate_contours))
     if len(candidate_contours) < 4:
-        # print("仅找到", len(candidate_contours), "个定位点")
-        # image_show("binary", binary)
-        # image_show("edges", edges)
-        # image_show("test", img_test)
-        # for i in range(len(contours)):
-        #     cv2.drawContours(img_dc, contours, i,
-        #                      (255, 255, 0), 5, cv2.LINE_AA)
-        # image_show("img_dc", img_dc)
+        if debug is True:
+            print("仅找到", len(candidate_contours), "个定位点")
+            image_show("binary", binary)
+            image_show("edges", edges)
+            for i in range(len(contours)):
+                cv2.drawContours(img_test, contours, i,
+                                 (0, 0, 255), 4, cv2.LINE_AA)
+            image_show("test", img_test)
         return []
 
     location_points = []
@@ -247,7 +241,7 @@ if __name__ == '__main__':
         # 传入文件夹路径
         if os.path.isdir(path):
             dir_path = path
-            file_num = 32
+            file_num = 31   # 测试文件数量
             success_num = 0
             fail_num = 0
             for i in range(file_num + 1):
@@ -257,14 +251,16 @@ if __name__ == '__main__':
                     corner_points = find_corner(img)
 
                     if corner_points == []:
-                        fail_num += 1
-                        print('[' + str(i) + ']', '定位失败，未找到足够定位点！')
-                        # 将未识别到色卡的照片统一存储至fail文件夹
-                        detect_fail_dir = dir_path + '/fail-test-2'
-                        if not os.path.isdir(detect_fail_dir):
-                            os.makedirs(detect_fail_dir)
-                        cv2.imwrite(detect_fail_dir + '/' + str(i) + '.jpg', img)
-                        continue
+                        corner_points = find_corner(img, b=1)
+                        if corner_points == []:
+                            fail_num += 1
+                            print('[' + str(i) + ']', '定位失败，未找到足够定位点！')
+                            # 将未识别到色卡的照片统一存储至fail文件夹
+                            detect_fail_dir = dir_path + '/fail-test-2'
+                            if not os.path.isdir(detect_fail_dir):
+                                os.makedirs(detect_fail_dir)
+                            cv2.imwrite(detect_fail_dir + '/' + str(i) + '.jpg', img)
+                            continue
 
                     card = get_color_card(img, corner_points)
                     card_dir = dir_path + '/card-test-2'
@@ -284,12 +280,12 @@ if __name__ == '__main__':
             file_ext = os.path.splitext(os.path.basename(file_path))[1]
             dir_name = os.path.dirname(file_path)
             img = cv2.imread(file_path)
-            corner_points = find_corner(img)
+            corner_points = find_corner(img, debug=True)
 
             if corner_points == []:
                 print("未找到定位点！")
                 # 将未识别到色卡的照片统一存储至fail文件夹
-                detect_fail_dir = dir_name + '/fail-test'
+                detect_fail_dir = dir_name + '/fail-test-2'
                 if not os.path.isdir(detect_fail_dir):
                     os.makedirs(detect_fail_dir)
                 cv2.imwrite(detect_fail_dir + '/' + file_name + file_ext, img)
