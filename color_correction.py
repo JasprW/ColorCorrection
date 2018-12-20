@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-18, 13:38:30
+# @Last modified time: 2018-12-20, 14:49:24
 
 from find_card import *
 from card_direction_detect import *
@@ -61,12 +61,12 @@ def get_polynomial(R, G, B):
     # return [1, R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
     # 九项多项式（灰度偏深）
-    # return [R, G, B, R*G, R*B, B*G, R*R, B*B, G*G]
+    return [R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
     # 十五项多项式
-    return [R, G, B,
-            R * G, R * B, B * G, R * R, B * B, G * G,
-            R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
+    # return [R, G, B,
+    #         R * G, R * B, B * G, R * R, B * B, G * G,
+    #         R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
 
     # 十六项多项式
     # return [R, G, B,
@@ -79,13 +79,17 @@ def img_digitization(image_data):
     """
     将图片电子化，生成色值矩阵
     :param image_data: 待校正的原始图片
-    :return: 返回线性回归需要的输入矩阵, shape:(16, image_data.shape[0] * image_data.shape[1])
+    :return: 返回线性回归需要的输入矩阵, shape:(n, image_data.shape[0] * image_data.shape[1]), n为多项式项数
     """
+    # FIXME: 解决内存占满问题，可能存在内存泄漏
+    # TODO: 尝试每行/列读取校正
     data = []
     for raw_data in image_data:
         for bgr in raw_data:
             data.append(get_polynomial(bgr[2], bgr[1], bgr[0]))
     data = np.array(data)
+    print(sys.getsizeof(image_data))
+    print(sys.getsizeof(data))
     return data.T
 
 
@@ -93,7 +97,7 @@ def create_inputData(color_data):
     """
 
     :param color_data: 待校正的色卡颜色数据，shape:(24, 3)
-    :return: 返回线性回归需要的输入矩阵, shape:(15, 24)
+    :return: 返回线性回归需要的输入矩阵, shape:(n, 24), n为多项式项数
     """
     data = []
     for bgr in color_data:
@@ -170,14 +174,14 @@ if __name__ == '__main__':
     # real_matrix = get_realColor_value()
 
     # 载入测试色卡图像，生成回归输入数据
-    img = cv2.imread(file_path, 1)
+    img = cv2.imread(file_path)
 
     # 定位色卡并进行透视变换为正视图
     points = find_corner(img)
-    if points == []:
+    if not points:
         # 替换参数重试一次
         points = find_corner(img, b=1)
-        if points == []:
+        if not points:
             print("未找到定位点！")
     else:
         color_card = get_color_card(img, points)
