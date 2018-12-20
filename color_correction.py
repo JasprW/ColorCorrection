@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-20, 14:49:24
+# @Last modified time: 2018-12-20, 17:23:39
 
 from find_card import *
 from card_direction_detect import *
@@ -10,6 +10,7 @@ import numpy as np
 import cv2
 import sys
 import os
+import time
 
 std_color_file = 'color_value_test.csv'
 
@@ -61,36 +62,18 @@ def get_polynomial(R, G, B):
     # return [1, R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
     # 九项多项式（灰度偏深）
-    return [R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
+    # return [R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
     # 十五项多项式
-    # return [R, G, B,
-    #         R * G, R * B, B * G, R * R, B * B, G * G,
-    #         R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
+    return [R, G, B,
+            R * G, R * B, B * G, R * R, B * B, G * G,
+            R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
 
     # 十六项多项式
     # return [R, G, B,
     #     R * G, R * B, B * G, R * R, B * B, G * G,
     #     R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G),
     #     R * G * B]
-
-
-def img_digitization(image_data):
-    """
-    将图片电子化，生成色值矩阵
-    :param image_data: 待校正的原始图片
-    :return: 返回线性回归需要的输入矩阵, shape:(n, image_data.shape[0] * image_data.shape[1]), n为多项式项数
-    """
-    # FIXME: 解决内存占满问题，可能存在内存泄漏
-    # TODO: 尝试每行/列读取校正
-    data = []
-    for raw_data in image_data:
-        for bgr in raw_data:
-            data.append(get_polynomial(bgr[2], bgr[1], bgr[0]))
-    data = np.array(data)
-    print(sys.getsizeof(image_data))
-    print(sys.getsizeof(data))
-    return data.T
 
 
 def create_inputData(color_data):
@@ -134,25 +117,27 @@ def recorrect_color(raw_img, A):
     :param A: 系数矩阵
     :return: 返回校正后的图像
     """
-    w = raw_img.shape[0]
-    h = raw_img.shape[1]
-    input_data = img_digitization(raw_img)
-    corrected_data = np.dot(A, input_data)
-    data = []
-    for element in corrected_data:
-        vec = []
-        for value in element:
-            if 0.0 <= value <= 255.0:
-                vec.append(int(value))
-            elif 0.0 > value:
-                vec.append(0)
-            elif 255.0 < value:
-                vec.append(255)
-        data.append(vec)
+    h = raw_img.shape[0]
+    w = raw_img.shape[1]
 
-    data = np.array(data)
-    data = data.transpose((1, 0))
-    corrected_img = data.reshape((w, h, 3))
+    corrected_img = np.zeros((h, w, 3), np.uint8)
+
+    # 按行读取并计算校正结果
+    for i in range(h):
+        input_data = create_inputData(raw_img[i])
+        # A.shape == (3, n)
+        # input_data.shape == (n, 1080)
+        corrected_data = np.dot(A, input_data).T
+        for j in range(w):
+            vec = []
+            for value in corrected_data[j]:
+                if 0.0 <= value <= 255.0:
+                    vec.append(int(value))
+                elif 0.0 > value:
+                    vec.append(0)
+                elif 255.0 < value:
+                    vec.append(255)
+            corrected_img[i][j] = vec
 
     return corrected_img
 
@@ -167,7 +152,13 @@ if __name__ == '__main__':
         else:
             print("未找到文件")
     else:
-        print("参数数量错误")
+        # print("参数数量错误")
+        file_path = '/Users/Jaspr/Desktop/test/1.jpg'
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        file_ext = os.path.splitext(os.path.basename(file_path))[1]
+        dir_name = os.path.dirname(file_path)
+
+    time_start = time.time()
 
     # 载入标准色卡数据
     std_matrix = get_stdColor_value()
@@ -183,34 +174,44 @@ if __name__ == '__main__':
         points = find_corner(img, b=1)
         if not points:
             print("未找到定位点！")
-    else:
-        color_card = get_color_card(img, points)
+            sys.exit()
 
-        # 检测色卡是否翻转、镜像或翻转+镜像，并对其进行相应变换
-        if is_upsideDown_and_mirrorred(color_card):
-            color_card = rotate(color_card)
-            color_card = cv2.flip(color_card, 1)
-        if is_upsideDown(color_card):
-            color_card = rotate(color_card)
-        if is_mirrored(color_card):
-            color_card = cv2.flip(color_card, 1)
-        # image_show("card", color_card)
+    color_card = get_color_card(img, points)
+    # 判断色卡提取是否正常
+    if not is_card(color_card):
+        print("找到色卡但未正常提取！")
+        sys.exit()
 
-        # 使用extract_color获取各色块中心颜色
-        color_data = extract_color(color_card)
-        input_data = create_inputData(color_data)
+    # 检测色卡是否翻转、镜像或翻转+镜像，并对其进行相应变换
+    if is_upsideDown_and_mirrorred(color_card):
+        color_card = rotate(color_card)
+        color_card = cv2.flip(color_card, 1)
+    if is_upsideDown(color_card):
+        color_card = rotate(color_card)
+    if is_mirrored(color_card):
+        color_card = cv2.flip(color_card, 1)
+    # image_show("card", color_card)
 
-        A = get_A_matrix(input_data, std_matrix)
+    time_card_end = time.time()
+    print("找到色卡！")
 
-        # 颜色校正
-        img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
-        corrected_img = recorrect_color(img, A)
-        # cv2.imwrite('output/corrected.jpg', corrected_img[..., [2, 1, 0]])
+    # 使用extract_color获取各色块中心颜色
+    color_data = extract_color(color_card)
+    input_data = create_inputData(color_data)
 
-        output_dir = dir_name + '/output'
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
-        img = cv2.imread(file_path)
-        cv2.imwrite(output_dir + '/' + file_name + '-corrected' + file_ext, corrected_img[..., [2, 1, 0]])
+    A = get_A_matrix(input_data, std_matrix)
 
-        print("Color correction complete!")
+    # 颜色校正
+    img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
+    corrected_img = recorrect_color(img, A)
+
+    output_dir = dir_name + '/output'
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+    img = cv2.imread(file_path)
+    cv2.imwrite(output_dir + '/' + file_name + '-corrected' + file_ext, corrected_img[..., [2, 1, 0]])
+    time_correction_end = time.time()
+    print("校正完成！")
+    print("寻找色卡用时: ", str(time_card_end - time_start))
+    print("校正用时: ", str(time_correction_end - time_card_end))
+    print("总用时: ", str(time_correction_end - time_start))

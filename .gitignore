@@ -4,6 +4,7 @@ output/
 __pycache__/
 *test*
 .idea/
+.vscode/
 
 .DS_Store
 .DS_Store?

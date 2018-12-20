@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-19, 16:35:16
+# @Last modified time: 2018-12-20, 17:18:04
 
 import cv2
 import numpy as np
@@ -62,6 +62,16 @@ def is_rect(contour):
         return False
     else:
         return True
+
+
+def is_card(color_card):
+    """
+    判断色卡提取是否正常
+    :param a: color_card
+    :return: 是否为正常色卡，bool，正常为True，不正常为False
+    """
+    # TODO: 检测色卡提取是否正常
+    return True
 
 
 def _intersection(a, b):
