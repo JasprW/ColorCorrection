@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-18, 10:56:47
+# @Last modified time: 2018-12-19, 16:35:16
 
 import cv2
 import numpy as np
@@ -276,20 +276,23 @@ if __name__ == '__main__':
         # 传入文件路径
         elif os.path.isfile(path):
             file_path = path
-            file_name = os.path.splitext(os.path.basename(file_path))[0]
-            file_ext = os.path.splitext(os.path.basename(file_path))[1]
+            file_name, file_ext = os.path.splitext(os.path.basename(file_path))
+            # file_ext = os.path.splitext(os.path.basename(file_path))[1]
             dir_name = os.path.dirname(file_path)
             img = cv2.imread(file_path)
-            corner_points = find_corner(img, debug=True)
+            corner_points = find_corner(img)
 
-            if corner_points == []:
-                print("未找到定位点！")
-                # 将未识别到色卡的照片统一存储至fail文件夹
-                detect_fail_dir = dir_name + '/fail-test-2'
-                if not os.path.isdir(detect_fail_dir):
-                    os.makedirs(detect_fail_dir)
-                cv2.imwrite(detect_fail_dir + '/' + file_name + file_ext, img)
-                sys.exit()
+            if not corner_points:
+                print("替换参数重试...")
+                corner_points = find_corner(img, b=1, debug=True)
+                if not corner_points:
+                    print("未找到定位点！")
+                    # 将未识别到色卡的照片统一存储至fail文件夹
+                    detect_fail_dir = dir_name + '/fail-test-2'
+                    if not os.path.isdir(detect_fail_dir):
+                        os.makedirs(detect_fail_dir)
+                    cv2.imwrite(detect_fail_dir + '/' + file_name + file_ext, img)
+                    sys.exit()
 
             card = get_color_card(img, corner_points)
             cv2.imwrite(dir_name + '/' + file_name + '-card-test' + file_ext, card)

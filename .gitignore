@@ -2,7 +2,8 @@
 images/
 output/
 __pycache__/
-*test*.py
+*test*
+.idea/
 
 .DS_Store
 .DS_Store?
