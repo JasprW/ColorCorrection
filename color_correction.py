@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-20, 17:23:39
+# @Last modified time: 2018-12-21, 12:14:45
 
 from find_card import *
 from card_direction_detect import *
@@ -11,6 +11,8 @@ import cv2
 import sys
 import os
 import time
+import threading
+# from multiprocessing import Pool
 
 std_color_file = 'color_value_test.csv'
 
@@ -62,12 +64,12 @@ def get_polynomial(R, G, B):
     # return [1, R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
     # 九项多项式（灰度偏深）
-    # return [R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
+    return [R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
     # 十五项多项式
-    return [R, G, B,
-            R * G, R * B, B * G, R * R, B * B, G * G,
-            R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
+    # return [R, G, B,
+    #         R * G, R * B, B * G, R * R, B * B, G * G,
+    #         R * (G * G), R * (B * B), G * (R * R), G * (B * B), B * (R * R), B * (G * G)]
 
     # 十六项多项式
     # return [R, G, B,
@@ -85,6 +87,21 @@ def create_inputData(color_data):
     data = []
     for bgr in color_data:
         data.append(get_polynomial(bgr[2], bgr[1], bgr[0]))
+
+    data = np.array(data)
+    return data.T
+
+
+def create_inputData_TEST(color_data):
+    """
+
+    :param color_data: 待校正的色卡颜色数据，shape:(24, 3)
+    :return: 返回线性回归需要的输入矩阵, shape:(n, 24), n为多项式项数
+    """
+    data = []
+    for row_data in color_data:
+        for bgr in row_data:
+            data.append(get_polynomial(bgr[2], bgr[1], bgr[0]))
 
     data = np.array(data)
     return data.T
@@ -110,7 +127,7 @@ def get_stdColor_value():
     return std_matrix.T
 
 
-def recorrect_color(raw_img, A):
+def recorrect_color(raw_img, A, multiprocessing=False):
     """
     用系数矩阵A对图像进行颜色校正
     :param raw_img: 原始图像
@@ -122,13 +139,53 @@ def recorrect_color(raw_img, A):
 
     corrected_img = np.zeros((h, w, 3), np.uint8)
 
-    # 按行读取并计算校正结果
-    for i in range(h):
+    if multiprocessing is True:
+        # 测试多线程计算
+        thread_num = 10
+        threads = []
+        for k in range(thread_num):
+            start_row = int(raw_img.shape[0] / thread_num) * k
+            if k != thread_num - 1:
+                end_row = int(raw_img.shape[0] / thread_num) * (k + 1)
+            else:
+                end_row = raw_img.shape[0]
+            t = threading.Thread(target=_calculate_data_MULTITHREADS, args=(raw_img, corrected_img, start_row, end_row))
+            threads.append(t)
+            t.start()
+
+        # 线程控制
+        for thr in threads:
+            if thr.isAlive():
+                thr.join()
+    else:
+        # 逐行读取并计算校正结果
+        for i in range(h):
+            input_data = create_inputData(raw_img[i])
+            # A.shape == (3, n)
+            # input_data.shape == (n, w)
+            corrected_data = np.dot(A, input_data).T
+            for j in range(w):
+                vec = []
+                for value in corrected_data[j]:
+                    if 0.0 <= value <= 255.0:
+                        vec.append(int(value))
+                    elif 0.0 > value:
+                        vec.append(0)
+                    elif 255.0 < value:
+                        vec.append(255)
+                corrected_img[i][j] = vec
+
+    corrected_img = np.array(corrected_img)
+    return corrected_img
+
+
+def _calculate_data(raw_img, corrected_img, start_row, end_row):
+    for i in range(start_row, end_row):
         input_data = create_inputData(raw_img[i])
         # A.shape == (3, n)
         # input_data.shape == (n, 1080)
         corrected_data = np.dot(A, input_data).T
-        for j in range(w):
+        for j in range(raw_img.shape[1]):
             vec = []
             for value in corrected_data[j]:
                 if 0.0 <= value <= 255.0:
@@ -137,13 +194,30 @@ def recorrect_color(raw_img, A):
                     vec.append(0)
                 elif 255.0 < value:
                     vec.append(255)
-            corrected_img[i][j] = vec
+        corrected_img[i][j] = vec
 
-    return corrected_img
+
+def _calculate_data_MULTITHREADS(raw_img, corrected_img, start_row, end_row):
+    for i in range(start_row, end_row):
+        input_data = create_inputData(raw_img[i])
+        # A.shape == (3, n)
+        # input_data.shape == (n, w)
+        corrected_data = np.dot(A, input_data).T
+        for j in range(raw_img.shape[1]):
+            vec = []
+            for value in corrected_data[j]:
+                if 0.0 <= value <= 255.0:
+                    vec.append(int(value))
+                elif 0.0 > value:
+                    vec.append(0)
+                elif 255.0 < value:
+                    vec.append(255)
+            # corrected_part.append(vec)
+            corrected_img[i][j] = vec
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 2:
+    if len(sys.argv) >= 2:
         file_path = sys.argv[1]
         if os.path.isfile(file_path):
             file_name = os.path.splitext(os.path.basename(file_path))[0]
@@ -203,7 +277,12 @@ if __name__ == '__main__':
 
     # 颜色校正
     img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
-    corrected_img = recorrect_color(img, A)
+    if len(sys.argv) == 3 and sys.argv[2] == '-m':
+        print('采用多线程计算校正图像')
+        corrected_img = recorrect_color(img, A, multiprocessing=True)
+    else:
+        print('单线程计算校正图像')
+        corrected_img = recorrect_color(img, A)
 
     output_dir = dir_name + '/output'
     if not os.path.isdir(output_dir):
