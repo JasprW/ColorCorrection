@@ -2,12 +2,12 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-20, 17:18:04
+# @Last modified time: 2018-12-21, 17:15:36
 
-import cv2
-import numpy as np
 import os
 import sys
+import cv2
+import numpy as np
 
 
 def image_show(name, img):

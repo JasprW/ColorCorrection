@@ -2,16 +2,16 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-21, 12:14:45
+# @Last modified time: 2018-12-24, 12:58:22
 
-from find_card import *
-from card_direction_detect import *
-import numpy as np
-import cv2
-import sys
 import os
+import sys
 import time
 import threading
+import cv2
+import numpy as np
+from find_card import *
+from card_direction_detect import *
 # from multiprocessing import Pool
 
 std_color_file = 'color_value_test.csv'
@@ -127,7 +127,7 @@ def get_stdColor_value():
     return std_matrix.T
 
 
-def recorrect_color(raw_img, A, multiprocessing=False):
+def recorrect_color(raw_img, A, multiprocessing=False, thread_num=4):
     """
     用系数矩阵A对图像进行颜色校正
     :param raw_img: 原始图像
@@ -141,7 +141,6 @@ def recorrect_color(raw_img, A, multiprocessing=False):
 
     if multiprocessing is True:
         # 测试多线程计算
-        thread_num = 10
         threads = []
         for k in range(thread_num):
             start_row = int(raw_img.shape[0] / thread_num) * k
@@ -227,7 +226,7 @@ if __name__ == '__main__':
             print("未找到文件")
     else:
         # print("参数数量错误")
-        file_path = '/Users/Jaspr/Desktop/test/1.jpg'
+        file_path = '/Users/Jaspr/Desktop/test/28.jpg'
         file_name = os.path.splitext(os.path.basename(file_path))[0]
         file_ext = os.path.splitext(os.path.basename(file_path))[1]
         dir_name = os.path.dirname(file_path)
@@ -277,7 +276,7 @@ if __name__ == '__main__':
 
     # 颜色校正
     img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
-    if len(sys.argv) == 3 and sys.argv[2] == '-m':
+    if '-m' in sys.argv:
         print('采用多线程计算校正图像')
         corrected_img = recorrect_color(img, A, multiprocessing=True)
     else:

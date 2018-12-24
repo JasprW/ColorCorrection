@@ -12,12 +12,12 @@ import cv2
 def is_upsideDown(color_card):
     real_color = extract_color(color_card)
 
-    ul = real_color[0]
-    ur = real_color[5]
-    bl = real_color[18]
-    br = real_color[23]
+    upper_left = real_color[0]
+    upper_right = real_color[5]
+    bottom_left = real_color[18]
+    bottom_right = real_color[23]
 
-    if ul[2] < bl[2] < ur[2] and ul[0] < br[0] < ur[0]:
+    if upper_left[2] < bottom_left[2] < upper_right[2] and upper_left[0] < bottom_right[0] < upper_right[0]:
         return True
     else:
         return False
@@ -26,26 +26,23 @@ def is_upsideDown(color_card):
 def is_mirrored(color_card):
     real_color = extract_color(color_card)
 
-    ul = real_color[0]
-    ur = real_color[5]
-    bl = real_color[18]
-    br = real_color[23]
+    upper_left = real_color[0]
+    upper_right = real_color[5]
+    bottom_left = real_color[18]
+    bottom_right = real_color[23]
 
-    if bl[0] < ul[0] < br[0] and bl[2] < ur[2] < br[2]:
-        return True
-    else:
-        return False
+    return bool(bottom_left[0] < upper_left[0] < bottom_right[0] and bottom_left[2] < upper_right[2] < bottom_right[2])
 
 
 def is_upsideDown_and_mirrorred(color_card):
     real_color = extract_color(color_card)
 
-    ul = real_color[0]
-    ur = real_color[5]
-    bl = real_color[18]
-    br = real_color[23]
+    upper_left = real_color[0]
+    upper_right = real_color[5]
+    bottom_left = real_color[18]
+    bottom_right = real_color[23]
 
-    if ul[0] > bl[0] > ur[0] and ul[2] > br[2] > ur[2]:
+    if upper_left[0] > bottom_left[0] > upper_right[0] and upper_left[2] > bottom_right[2] > upper_right[2]:
         return True
     else:
         return False
