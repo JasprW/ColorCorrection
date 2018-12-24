@@ -250,9 +250,13 @@ if __name__ == '__main__':
             sys.exit()
 
     color_card = get_color_card(img, points)
+
     # 判断色卡提取是否正常
-    if not is_card(color_card):
-        print("找到色卡但未正常提取！")
+    if not is_card_ok(color_card):
+        print('找到色卡但色卡不正常！图片存储至:', fail_dir)
+        if not os.path.isdir(fail_dir):
+            os.makedirs(fail_dir)
+        cv2.imwrite(fail_dir + slash + file_name + '-wrong' + file_ext, img)
         sys.exit()
 
     # 检测色卡是否翻转、镜像或翻转+镜像，并对其进行相应变换

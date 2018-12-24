@@ -8,6 +8,7 @@ import os
 import sys
 import cv2
 import numpy as np
+from card_direction_detect import is_card_ok
 
 
 def image_show(name, img):
@@ -254,6 +255,7 @@ if __name__ == '__main__':
             file_num = 31   # 测试文件数量
             success_num = 0
             fail_num = 0
+            wrong_num = 0
             for i in range(file_num + 1):
                 file_path = dir_path + '/' + str(i) + '.jpg'
                 if os.path.isfile(file_path):
@@ -279,8 +281,18 @@ if __name__ == '__main__':
                     cv2.imwrite(card_dir + '/' + str(i) + '-card-test-2' + '.jpg', card)
                     print('[' + str(i) + ']', '找到色卡！')
                     success_num += 1
+
+                    # 检查卡片是否正常
+                    if not is_card_ok(card):
+                        print('[' + str(i) + ']', '找到色卡，但色卡提取不正确！')
+                        wrong_num += 1
+                    else:
+                        print('[' + str(i) + ']', '找到色卡！')
+                        success_num += 1
+
             print('success:', success_num)
             print('fail:', fail_num)
+            print('wrong:', wrong_num)
             print('rate:', success_num / file_num)
 
         # 传入文件路径
@@ -306,6 +318,10 @@ if __name__ == '__main__':
 
             card = get_color_card(img, corner_points)
             cv2.imwrite(dir_name + '/' + file_name + '-card-test' + file_ext, card)
+            # 检查卡片是否正常
+            if not is_card_ok(card):
+                print("不正常")
+                # TODO: 检查6、26检测卡片失败原因
             print("找到色卡！")
 
         else:
