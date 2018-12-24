@@ -2,12 +2,13 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-24, 12:58:22
+# @Last modified time: 2018-12-24, 20:23:19
 
 import os
 import sys
+import platform
 import time
-import threading
+# import threading
 import cv2
 import numpy as np
 from find_card import *
@@ -15,25 +16,6 @@ from card_direction_detect import *
 # from multiprocessing import Pool
 
 std_color_file = 'color_value_test.csv'
-
-
-def extract_color(color_card):
-    """
-    获取实际拍摄的照片中色卡各颜色色值
-    :param color_card: 透视校正完成的色卡图片
-    :return: 色卡中的颜色色值，以矩阵格式存储，color_matrix，shape: (3 , 24)
-    """
-    img = color_card.copy()
-    color_matrix = []
-    pos_hori = [34, 100, 166, 232, 298, 364]
-    pos_vert = [44, 116, 190, 260]
-    for i in pos_vert:
-        for j in pos_hori:
-            data = img[i - 3:i + 3, j - 3:j + 3]
-            b, g, r = cv2.split(data)
-            color_matrix.append([int(np.mean(b)), int(np.mean(g)), int(np.mean(r))])
-    color_matrix = np.array(color_matrix)
-    return color_matrix
 
 
 def get_A_matrix(x, y):
@@ -92,14 +74,15 @@ def create_inputData(color_data):
     return data.T
 
 
-def create_inputData_TEST(color_data):
+def create_inputData_TEST(img_data, start_row, end_row):
     """
 
-    :param color_data: 待校正的色卡颜色数据，shape:(24, 3)
-    :return: 返回线性回归需要的输入矩阵, shape:(n, 24), n为多项式项数
+    :param img_data: 待校正的图片数据，shape:(w*h, 3)
+    :return: 返回线性回归需要的输入矩阵, shape:(n, w*h), n为多项式项数
     """
     data = []
-    for row_data in color_data:
+    input = img_data[start_row:end_row]
+    for row_data in input:
         for bgr in row_data:
             data.append(get_polynomial(bgr[2], bgr[1], bgr[0]))
 
@@ -122,8 +105,6 @@ def get_stdColor_value():
         std_matrix.append([int(element[2]), int(element[3]), int(element[4])])
 
     std_matrix = np.array(std_matrix)
-    # print(std_matrix.shape)
-    # print("std_matrix:\n", std_matrix)
     return std_matrix.T
 
 
@@ -141,23 +122,26 @@ def recorrect_color(raw_img, A, multiprocessing=False, thread_num=4):
 
     if multiprocessing is True:
         # 测试多线程计算
-        threads = []
+        print('采用多线程计算校正图像')
+        # threads = []
         for k in range(thread_num):
             start_row = int(raw_img.shape[0] / thread_num) * k
             if k != thread_num - 1:
                 end_row = int(raw_img.shape[0] / thread_num) * (k + 1)
             else:
                 end_row = raw_img.shape[0]
-            t = threading.Thread(target=_calculate_data_MULTITHREADS, args=(raw_img, corrected_img, start_row, end_row))
-            threads.append(t)
-            t.start()
+            # t = threading.Thread(target=_calculate_data_MULTITHREADS, args=(raw_img, corrected_img, start_row, end_row))
+            # threads.append(t)
+            # t.start()
+            _calculate_data_MULTITHREADS(raw_img, corrected_img, start_row, end_row)
 
         # 线程控制
-        for thr in threads:
-            if thr.isAlive():
-                thr.join()
+        # for thr in threads:
+        #     if thr.isAlive():
+        #         thr.join()
     else:
         # 逐行读取并计算校正结果
+        # print('单线程计算校正图像')
         for i in range(h):
             input_data = create_inputData(raw_img[i])
             # A.shape == (3, n)
@@ -178,41 +162,42 @@ def recorrect_color(raw_img, A, multiprocessing=False, thread_num=4):
     return corrected_img
 
 
-def _calculate_data(raw_img, corrected_img, start_row, end_row):
-    for i in range(start_row, end_row):
-        input_data = create_inputData(raw_img[i])
-        # A.shape == (3, n)
-        # input_data.shape == (n, 1080)
-        corrected_data = np.dot(A, input_data).T
-        for j in range(raw_img.shape[1]):
-            vec = []
-            for value in corrected_data[j]:
-                if 0.0 <= value <= 255.0:
-                    vec.append(int(value))
-                elif 0.0 > value:
-                    vec.append(0)
-                elif 255.0 < value:
-                    vec.append(255)
-        corrected_img[i][j] = vec
+# def _calculate_data(raw_img, corrected_img, start_row, end_row):
+#     for i in range(start_row, end_row):
+#         input_data = create_inputData(raw_img[i])
+#         # A.shape == (3, n)
+#         # input_data.shape == (n, 1080)
+#         corrected_data = np.dot(A, input_data).T
+#         for j in range(raw_img.shape[1]):
+#             vec = []
+#             for value in corrected_data[j]:
+#                 if 0.0 <= value <= 255.0:
+#                     vec.append(int(value))
+#                 elif 0.0 > value:
+#                     vec.append(0)
+#                 elif 255.0 < value:
+#                     vec.append(255)
+#         corrected_img[i][j] = vec
 
 
 def _calculate_data_MULTITHREADS(raw_img, corrected_img, start_row, end_row):
-    for i in range(start_row, end_row):
-        input_data = create_inputData(raw_img[i])
-        # A.shape == (3, n)
-        # input_data.shape == (n, w)
-        corrected_data = np.dot(A, input_data).T
-        for j in range(raw_img.shape[1]):
-            vec = []
-            for value in corrected_data[j]:
-                if 0.0 <= value <= 255.0:
-                    vec.append(int(value))
-                elif 0.0 > value:
-                    vec.append(0)
-                elif 255.0 < value:
-                    vec.append(255)
-            # corrected_part.append(vec)
-            corrected_img[i][j] = vec
+    input_data = create_inputData_TEST(raw_img, start_row, end_row)
+    # A.shape == (3, n)
+    # input_data.shape == (n, w*h)
+    corrected_data = np.dot(A, input_data).T
+    data = []
+    for element in corrected_data:
+        vec = []
+        for value in element:
+            if 0.0 <= value <= 255.0:
+                vec.append(int(value))
+            elif 0.0 > value:
+                vec.append(0)
+            elif 255.0 < value:
+                vec.append(255)
+        data.append(vec)
+    data = np.array(data).reshape((end_row - start_row, raw_img.shape[1], 3))
+    corrected_img[start_row:end_row] = data
 
 
 if __name__ == '__main__':
@@ -230,11 +215,11 @@ if __name__ == '__main__':
         else:
             print("未找到文件")
     else:
-        # print("参数数量错误")
-        file_path = '/Users/Jaspr/Desktop/test/28.jpg'
-        file_name = os.path.splitext(os.path.basename(file_path))[0]
-        file_ext = os.path.splitext(os.path.basename(file_path))[1]
-        dir_name = os.path.dirname(file_path)
+        print("参数数量错误")
+        # file_path = '/Users/Jaspr/Desktop/test/28.jpg'
+        # file_name = os.path.splitext(os.path.basename(file_path))[0]
+        # file_ext = os.path.splitext(os.path.basename(file_path))[1]
+        # dir_name = os.path.dirname(file_path)
 
     output_dir = dir_name + slash + 'output'
     fail_dir = dir_name + slash + 'fail'
@@ -295,10 +280,8 @@ if __name__ == '__main__':
     # 颜色校正
     img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
     if '-m' in sys.argv:
-        print('采用多线程计算校正图像')
         corrected_img = recorrect_color(img, A, multiprocessing=True)
     else:
-        print('单线程计算校正图像')
         corrected_img = recorrect_color(img, A)
 
     if not os.path.isdir(output_dir):

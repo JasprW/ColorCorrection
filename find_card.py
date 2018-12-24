@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-21, 17:15:36
+# @Last modified time: 2018-12-24, 20:28:54
 
 import os
 import sys
@@ -17,6 +17,25 @@ def image_show(name, img):
     cv2.imshow(name, img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def extract_color(color_card):
+    """
+    获取实际拍摄的照片中色卡各颜色色值
+    :param color_card: 透视校正完成的色卡图片
+    :return: 色卡中的颜色色值，以矩阵格式存储，color_matrix，shape: (3 , 24)
+    """
+    img = color_card.copy()
+    color_matrix = []
+    pos_hori = [34, 100, 166, 232, 298, 364]
+    pos_vert = [44, 116, 190, 260]
+    for i in pos_vert:
+        for j in pos_hori:
+            data = img[i - 3:i + 3, j - 3:j + 3]
+            b, g, r = cv2.split(data)
+            color_matrix.append([int(np.mean(b)), int(np.mean(g)), int(np.mean(r))])
+    color_matrix = np.array(color_matrix)
+    return color_matrix
 
 
 def sort_point(points):
@@ -54,7 +73,7 @@ def is_duplicate(c, contours):
     return False
 
 
-def is_rect(contour):
+def is_rect(contour, rate=0.8):
     rect = cv2.minAreaRect(contour)
     w = rect[1][0]
     h = rect[1][1]
@@ -64,16 +83,6 @@ def is_rect(contour):
         return False
     else:
         return True
-
-
-def is_card(color_card):
-    """
-    判断色卡提取是否正常
-    :param a: color_card
-    :return: 是否为正常色卡，bool，正常为True，不正常为False
-    """
-    # TODO: 检测色卡提取是否正常
-    return True
 
 
 def _intersection(a, b):
@@ -88,7 +97,7 @@ def _intersection(a, b):
     w = min(a[0] + a[2], b[0] + b[2]) - x
     h = min(a[1] + a[3], b[1] + b[3]) - y
     if w < 0 or h < 0:
-        return False  # or (0, 0, 0, 0) ?
+        return False
     return True
 
 
@@ -125,6 +134,7 @@ def find_corner(img, b=2, debug=False):
     #     return []
     hierarchy = hierarchy[0]
     found = []
+    found = set(found)
 
     img_test = img.copy()
 
@@ -136,34 +146,20 @@ def find_corner(img, b=2, debug=False):
         rect = cv2.minAreaRect(contours[i])
         w = rect[1][0]
         h = rect[1][1]
-        if w and h:
-            # rate = min(w, h) / max(w, h)
-            # 选取方形轮廓
-            if (is_rect(contours[i])):
-                # cv2.drawContours(img_test, contours, i,
-                #                  (255, 255, 0), 1)
+        # 选取方形轮廓
+        if w and h and (is_rect(contours[i])):
+            # 判断轮廓层级，筛选多层轮廓的外围轮廓
+            # FIXME: 排除色块格子 [27]
+            while hierarchy[k][2] != -1:
+                k = hierarchy[k][2]
+                c = c + 1
 
-                # 判断轮廓层级，筛选多层轮廓的外围轮廓
-                # FIXME: 排除色块格子 [27]
-                while hierarchy[k][2] != -1:
-                    k = hierarchy[k][2]
-                    # r = cv2.minAreaRect(contours[k])
-                    # if r[1][0] * r[1][1] < 100:
-                    #     break
-                    c = c + 1
-
-                    # 超过n层则判断为定位点，默认4层
-                    # if c == 3:
-                    #     cv2.drawContours(img_test, contours, i,
-                    #                      (255, 0, 0), 3, cv2.LINE_AA)
-                    if c >= 4:
-                        # cv2.drawContours(img_test, contours, i,
-                        #                  (0, 0, 255), 3, cv2.LINE_AA)
-                        if i not in found:
-                            found.append(i)
-                        break
-        else:
-            continue
+                # 超过n层则判断为定位点，默认4层
+                if c >= 4:
+                    # cv2.drawContours(img_test, contours, i,
+                    #                  (0, 0, 255), 3, cv2.LINE_AA)
+                    found.add(i)
+                    break
 
     temp_contours = []
     for i in found:
@@ -174,6 +170,13 @@ def find_corner(img, b=2, debug=False):
         temp_contours, key=cv2.contourArea, reverse=True)
 
     if len(contours) < 4:
+        if debug is True:
+            image_show("binary", binary)
+            image_show("edges", edges)
+            for i in range(len(contours)):
+                cv2.drawContours(img_test, contours, i,
+                                 (0, 0, 255), 4, cv2.LINE_AA)
+            image_show("test", img_test)
         return []
 
     candidate_contours = []
@@ -186,16 +189,17 @@ def find_corner(img, b=2, debug=False):
             if len(candidate_contours) >= 4:
                 break
 
-    # print(len(candidate_contours))
+    if debug is True:
+        image_show("binary", binary)
+        image_show("edges", edges)
+        for i in range(len(contours)):
+            cv2.drawContours(img_test, contours, i,
+                             (0, 0, 255), 4, cv2.LINE_AA)
+        image_show("test", img_test)
+
     if len(candidate_contours) < 4:
-        if debug is True:
+        if b == 1:
             print("仅找到", len(candidate_contours), "个定位点")
-            image_show("binary", binary)
-            image_show("edges", edges)
-            for i in range(len(contours)):
-                cv2.drawContours(img_test, contours, i,
-                                 (0, 0, 255), 4, cv2.LINE_AA)
-            image_show("test", img_test)
         return []
 
     location_points = []
@@ -220,13 +224,13 @@ def get_color_card(img, points):
     sp = sort_point(points)
 
     # 查看定位点位置及顺序
-    img_point_position = img.copy()
-    for i in range(0, 4):
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.circle(img_point_position, (np.float32(sp[i][0]), np.float32(
-            sp[i][1])), 20, (255, 255, 0), -1, cv2.LINE_AA)
-        cv2.putText(img_point_position, str(
-            i + 1), (np.int0(sp[i][0]) - 10, np.int0(sp[i][1]) + 10), font, 10, (255, 255, 0), 10)
+    # img_point_position = img.copy()
+    # for i in range(0, 4):
+    #     font = cv2.FONT_HERSHEY_SIMPLEX
+    #     cv2.circle(img_point_position, (np.float32(sp[i][0]), np.float32(
+    #         sp[i][1])), 20, (255, 255, 0), -1, cv2.LINE_AA)
+    #     cv2.putText(img_point_position, str(
+    #         i + 1), (np.int0(sp[i][0]) - 10, np.int0(sp[i][1]) + 10), font, 10, (255, 255, 0), 10)
     # image_show("Points position", img_point_position)
 
     # 透视变换，转换为正视图
@@ -242,7 +246,6 @@ def get_color_card(img, points):
         warpedimg.shape[0] - padding), padding:(warpedimg.shape[1] - padding)]
     img_output = cv2.resize(img_cropped, (400, 300),
                             interpolation=cv2.INTER_CUBIC)
-    # image_show("cropeped", img_cropped)
 
     return img_output
 
@@ -258,7 +261,7 @@ if __name__ == '__main__':
         # 传入文件夹路径
         if os.path.isdir(path):
             dir_path = path
-            file_num = 31   # 测试文件数量
+            file_num = 50   # 测试文件数量
             success_num = 0
             fail_num = 0
             wrong_num = 0
@@ -304,11 +307,11 @@ if __name__ == '__main__':
         elif os.path.isfile(path):
             file_path = path
             file_name, file_ext = os.path.splitext(os.path.basename(file_path))
-            # file_ext = os.path.splitext(os.path.basename(file_path))[1]
-            dir_name = os.path.dirname(file_path)
+            dir_path = os.path.dirname(file_path)
             card_dir = dir_path + slash + 'card'
             img = cv2.imread(file_path)
-            corner_points = find_corner(img)
+
+            corner_points = find_corner(img, debug=True)
 
             if not corner_points:
                 print("替换参数重试...")
@@ -337,4 +340,3 @@ if __name__ == '__main__':
             sys.exit()
     else:
         print("参数数量错误！")
-    # image_show('', card)
