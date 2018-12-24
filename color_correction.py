@@ -216,6 +216,11 @@ def _calculate_data_MULTITHREADS(raw_img, corrected_img, start_row, end_row):
 
 
 if __name__ == '__main__':
+    if platform.system() == "Windows":
+        slash = '\\'
+    else:
+        slash = '/'
+
     if len(sys.argv) >= 2:
         file_path = sys.argv[1]
         if os.path.isfile(file_path):
@@ -231,6 +236,9 @@ if __name__ == '__main__':
         file_ext = os.path.splitext(os.path.basename(file_path))[1]
         dir_name = os.path.dirname(file_path)
 
+    output_dir = dir_name + slash + 'output'
+    fail_dir = dir_name + slash + 'fail'
+    card_dir = dir_name + slash + 'card'
     time_start = time.time()
 
     # 载入标准色卡数据
@@ -246,7 +254,10 @@ if __name__ == '__main__':
         # 替换参数重试一次
         points = find_corner(img, b=1)
         if not points:
-            print("未找到定位点！")
+            print('未找到定位点！图片存储至:', fail_dir)
+            if not os.path.isdir(fail_dir):
+                os.makedirs(fail_dir)
+            cv2.imwrite(fail_dir + slash + file_name + '-fail' + file_ext, img)
             sys.exit()
 
     color_card = get_color_card(img, points)
@@ -271,6 +282,9 @@ if __name__ == '__main__':
 
     time_card_end = time.time()
     print("找到色卡！")
+    if not os.path.isdir(card_dir):
+        os.makedirs(card_dir)
+    cv2.imwrite(card_dir + slash + file_name + '-card' + '.jpg', color_card)
 
     # 使用extract_color获取各色块中心颜色
     color_data = extract_color(color_card)
@@ -287,11 +301,10 @@ if __name__ == '__main__':
         print('单线程计算校正图像')
         corrected_img = recorrect_color(img, A)
 
-    output_dir = dir_name + '/output'
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     img = cv2.imread(file_path)
-    cv2.imwrite(output_dir + '/' + file_name + '-corrected' + file_ext, corrected_img[..., [2, 1, 0]])
+    cv2.imwrite(output_dir + slash + file_name + '-corrected' + '.jpg', corrected_img[..., [2, 1, 0]])
     time_correction_end = time.time()
     print("校正完成！")
     print("寻找色卡用时: ", str(time_card_end - time_start))

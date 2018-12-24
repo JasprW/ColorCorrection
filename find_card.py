@@ -6,6 +6,7 @@
 
 import os
 import sys
+import platform
 import cv2
 import numpy as np
 from card_direction_detect import is_card_ok
@@ -247,6 +248,11 @@ def get_color_card(img, points):
 
 
 if __name__ == '__main__':
+    if platform.system() == "Windows":
+        slash = '\\'
+    else:
+        slash = '/'
+
     if len(sys.argv) == 2:
         path = sys.argv[1]
         # 传入文件夹路径
@@ -257,7 +263,7 @@ if __name__ == '__main__':
             fail_num = 0
             wrong_num = 0
             for i in range(file_num + 1):
-                file_path = dir_path + '/' + str(i) + '.jpg'
+                file_path = dir_path + slash + str(i) + '.jpg'
                 if os.path.isfile(file_path):
                     img = cv2.imread(file_path)
                     corner_points = find_corner(img)
@@ -268,19 +274,18 @@ if __name__ == '__main__':
                             fail_num += 1
                             print('[' + str(i) + ']', '定位失败，未找到足够定位点！')
                             # 将未识别到色卡的照片统一存储至fail文件夹
-                            detect_fail_dir = dir_path + '/fail-test-2'
+                            detect_fail_dir = dir_path + slash + 'fail'
                             if not os.path.isdir(detect_fail_dir):
                                 os.makedirs(detect_fail_dir)
-                            cv2.imwrite(detect_fail_dir + '/' + str(i) + '.jpg', img)
+                            cv2.imwrite(detect_fail_dir + slash + str(i) + '.jpg', img)
                             continue
 
                     card = get_color_card(img, corner_points)
-                    card_dir = dir_path + '/card-test-2'
+
+                    card_dir = dir_path + slash + 'card'
                     if not os.path.isdir(card_dir):
                         os.makedirs(card_dir)
-                    cv2.imwrite(card_dir + '/' + str(i) + '-card-test-2' + '.jpg', card)
-                    print('[' + str(i) + ']', '找到色卡！')
-                    success_num += 1
+                    cv2.imwrite(card_dir + slash + str(i) + '-card' + '.jpg', card)
 
                     # 检查卡片是否正常
                     if not is_card_ok(card):
@@ -301,6 +306,7 @@ if __name__ == '__main__':
             file_name, file_ext = os.path.splitext(os.path.basename(file_path))
             # file_ext = os.path.splitext(os.path.basename(file_path))[1]
             dir_name = os.path.dirname(file_path)
+            card_dir = dir_path + slash + 'card'
             img = cv2.imread(file_path)
             corner_points = find_corner(img)
 
@@ -310,18 +316,20 @@ if __name__ == '__main__':
                 if not corner_points:
                     print("未找到定位点！")
                     # 将未识别到色卡的照片统一存储至fail文件夹
-                    detect_fail_dir = dir_name + '/fail-test-2'
+                    detect_fail_dir = dir_path + slash + 'fail'
                     if not os.path.isdir(detect_fail_dir):
                         os.makedirs(detect_fail_dir)
-                    cv2.imwrite(detect_fail_dir + '/' + file_name + file_ext, img)
+                    cv2.imwrite(detect_fail_dir + slash + file_name + file_ext, img)
                     sys.exit()
 
             card = get_color_card(img, corner_points)
-            cv2.imwrite(dir_name + '/' + file_name + '-card-test' + file_ext, card)
             # 检查卡片是否正常
             if not is_card_ok(card):
                 print("不正常")
                 # TODO: 检查6、26检测卡片失败原因
+            if not os.path.isdir(card_dir):
+                os.makedirs(card_dir)
+            cv2.imwrite(card_dir + slash + file_name + '-card' + file_ext, card)
             print("找到色卡！")
 
         else:
