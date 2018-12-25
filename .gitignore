@@ -5,6 +5,7 @@ __pycache__/
 *test*
 .idea/
 .vscode/
+*deprecated*
 
 .DS_Store
 .DS_Store?
