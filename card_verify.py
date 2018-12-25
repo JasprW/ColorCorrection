@@ -2,7 +2,7 @@
 # @Date:   2018-12-10, 15:29:33
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-24, 19:57:27
+# @Last modified time: 2018-12-25, 13:37:38
 
 import sys
 import os
@@ -53,7 +53,7 @@ def is_upsideDown_and_mirrorred(color_card):
 
 
 def is_card_ok(color_card):
-    from find_card import image_show
+    # from find_card import image_show
     gray = cv2.cvtColor(color_card.copy(), cv2.COLOR_BGR2GRAY)
     # _, binary = cv2.threshold(
     #     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)

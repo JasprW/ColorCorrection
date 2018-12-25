@@ -2,14 +2,14 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-24, 20:28:54
+# @Last modified time: 2018-12-25, 13:37:22
 
 import os
 import sys
 import platform
 import cv2
 import numpy as np
-from card_direction_detect import is_card_ok
+from card_verify import is_card_ok
 
 
 def image_show(name, img):

@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-24, 20:23:19
+# @Last modified time: 2018-12-25, 13:37:08
 
 import os
 import sys
@@ -12,7 +12,7 @@ import time
 import cv2
 import numpy as np
 from find_card import *
-from card_direction_detect import *
+from card_verify import *
 # from multiprocessing import Pool
 
 std_color_file = 'color_value_test.csv'
