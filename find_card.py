@@ -149,7 +149,6 @@ def find_corner(img, b=2, debug=False):
         # 选取方形轮廓
         if w and h and (is_rect(contours[i])):
             # 判断轮廓层级，筛选多层轮廓的外围轮廓
-            # FIXME: 排除色块格子 [27]
             while hierarchy[k][2] != -1:
                 k = hierarchy[k][2]
                 c = c + 1
@@ -186,8 +185,14 @@ def find_corner(img, b=2, debug=False):
             continue
         else:
             candidate_contours.append(c)
-            if len(candidate_contours) >= 4:
+            if len(candidate_contours) >= 5:
                 break
+
+    # 根据轮廓面积排除色块轮廓
+    if cv2.contourArea(candidate_contours[0]) / cv2.contourArea(candidate_contours[1]) > 1.4:
+        candidate_contours.pop(0)
+    else:
+        candidate_contours = candidate_contours[0:4]
 
     if debug is True:
         image_show("binary", binary)
