@@ -2,12 +2,11 @@
 # @Date:   2018-12-10, 15:29:33
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-25, 13:37:38
+# @Last modified time: 2018-12-25, 13:52:32
 
 import sys
 import os
 import cv2
-# from color_correction import extract_color
 
 
 def is_upsideDown(color_card):

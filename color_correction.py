@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-25, 13:37:08
+# @Last modified time: 2018-12-26, 10:18:48
 
 import os
 import sys
@@ -15,7 +15,7 @@ from find_card import *
 from card_verify import *
 # from multiprocessing import Pool
 
-std_color_file = 'color_value_test.csv'
+std_color_file = 'color_value.csv'
 
 
 def get_A_matrix(x, y):
@@ -201,10 +201,7 @@ def _calculate_data_MULTITHREADS(raw_img, corrected_img, start_row, end_row):
 
 
 if __name__ == '__main__':
-    if platform.system() == "Windows":
-        slash = '\\'
-    else:
-        slash = '/'
+    slash = '\\' if platform.system() == "Windows" else '/'
 
     if len(sys.argv) >= 2:
         file_path = sys.argv[1]
@@ -279,11 +276,15 @@ if __name__ == '__main__':
 
     # 颜色校正
     img_resized = cv2.resize(img.copy(), None, fx=0.5, fy=0.5)
+
+    """
     if '-m' in sys.argv:
         corrected_img = recorrect_color(img, A, multiprocessing=True)
     else:
         corrected_img = recorrect_color(img, A)
+    """
 
+    corrected_img = recorrect_color(img, A)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     img = cv2.imread(file_path)
