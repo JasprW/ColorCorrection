@@ -2,7 +2,7 @@
 # @Date:   2018-12-10, 15:29:33
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-25, 13:52:32
+# @Last modified time: 2018-12-27, 15:33:03
 
 import sys
 import os
@@ -17,8 +17,10 @@ def is_upsideDown(color_card):
     upper_right = real_color[5]
     bottom_left = real_color[18]
     bottom_right = real_color[23]
+    # print(upper_left, upper_right, bottom_left, bottom_right)
+    # print(real_color[0], real_color[1], real_color[2], real_color[3], real_color[4], real_color[5])
 
-    if upper_left[2] < bottom_left[2] < upper_right[2] and upper_left[0] < bottom_right[0] < upper_right[0]:
+    if (upper_right > bottom_left).all() and (upper_right > bottom_right).all() and (upper_right > upper_left).all():
         return True
     else:
         return False
@@ -33,7 +35,10 @@ def is_mirrored(color_card):
     bottom_left = real_color[18]
     bottom_right = real_color[23]
 
-    return bool(bottom_left[0] < upper_left[0] < bottom_right[0] and bottom_left[2] < upper_right[2] < bottom_right[2])
+    if (bottom_right > bottom_left).all() and (bottom_right > upper_left).all() and (bottom_right > upper_right).all():
+        return True
+    else:
+        return False
 
 
 def is_upsideDown_and_mirrorred(color_card):
@@ -45,7 +50,7 @@ def is_upsideDown_and_mirrorred(color_card):
     bottom_left = real_color[18]
     bottom_right = real_color[23]
 
-    if upper_left[0] > bottom_left[0] > upper_right[0] and upper_left[2] > bottom_right[2] > upper_right[2]:
+    if (upper_left > bottom_left).all() and (upper_left > bottom_right).all() and (upper_left > upper_right).all():
         return True
     else:
         return False
@@ -112,3 +117,15 @@ if __name__ == '__main__':
                     sys.exit()
                 else:
                     print("卡片正常！")
+                if is_upsideDown(card):
+                    print("卡片倒置！")
+                    sys.exit()
+                else:
+                    print("卡片方向正确！")
+                print('==== 旋转后 ====')
+                card_rotated = rotate(card)
+                if is_upsideDown(card_rotated):
+                    print("卡片倒置！")
+                    sys.exit()
+                else:
+                    print("卡片方向正确！")
