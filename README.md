@@ -1,5 +1,5 @@
 # 色卡定位及照片色彩校正
-## 依赖包
+## Dependencies
 * opencv-python
 * numpy
 
@@ -53,7 +53,7 @@
 python3 find_card.py /WHERE/TO/FILE_PATH
 ```
 
-### 批量提取文件夹中的色卡（色卡文件名为从1开始递增数字，后缀为.jpg）：
+### 批量提取文件夹中的色卡：
 ```
 python3 find_card.py /WHERE/TO/DIR_PATH/
 ```
