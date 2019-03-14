@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-27, 17:00:05
+# @Last modified time: 2019-03-14, 15:15:49
 
 import os
 import sys
@@ -101,7 +101,7 @@ def _intersection(a, b):
     return True
 
 
-def find_corner(img, b=2, debug=False):
+def find_corner(img, blockSize=13, param_c=2, debug=False):
     """
     获取色卡四角的定位点
     :param img: 输入图像
@@ -117,7 +117,7 @@ def find_corner(img, b=2, debug=False):
     # 使用自适应二值化避免过曝影响定位点识别
     blurred = cv2.GaussianBlur(gray, (13, 13), 0)
     binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                   cv2.THRESH_BINARY, 11, b)
+                                   cv2.THRESH_BINARY, blockSize, param_c)
 
     # 形态学闭运算解决边缘断开问题
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -170,8 +170,8 @@ def find_corner(img, b=2, debug=False):
 
     if len(contours) < 4:
         if debug is True:
-            image_show("binary", binary)
-            image_show("edges", edges)
+            # image_show("binary", binary)
+            # image_show("edges", edges)
             for i in range(len(contours)):
                 cv2.drawContours(img_test, contours, i,
                                  (0, 0, 255), 4, cv2.LINE_AA)
@@ -195,15 +195,16 @@ def find_corner(img, b=2, debug=False):
         candidate_contours = candidate_contours[0:4]
 
     if debug is True:
-        image_show("binary", binary)
-        image_show("edges", edges)
+        # image_show("binary", binary)
+        # image_show("edges", edges)
         for i in range(len(contours)):
             cv2.drawContours(img_test, contours, i,
                              (0, 0, 255), 4, cv2.LINE_AA)
         image_show("test", img_test)
 
     if len(candidate_contours) < 4:
-        if b == 1:
+        # if param_c == 1:
+        if debug:
             print("仅找到", len(candidate_contours), "个定位点")
         return []
 
@@ -255,6 +256,42 @@ def get_color_card(img, points):
     return img_output
 
 
+def retry(img, debug=False):
+    blockSize = 19
+    param_c = 1
+    retry_time = 6
+    corner_points = []
+    card = 0
+    for i in range(retry_time):
+        if debug:
+            print('第', i + 1, '次重试...')
+        blockSize = blockSize - 2
+        param_c = 2 if blockSize < 10 else 1
+        corner_points = find_corner(img, blockSize, param_c, debug)
+        if corner_points == []:
+            if not isinstance(card, int):
+                break
+            else:
+                continue
+        card = get_color_card(img, corner_points)
+        if not is_card_ok(card):
+            if debug:
+                print('找到色卡但错误,重试...')
+            continue
+        else:
+            return card
+
+    if corner_points == [] and isinstance(card, int):
+        return -1
+    elif not isinstance(card, int) and is_card_ok(card):
+        return card
+    else:
+        if debug:
+            image_show('', card)
+            cv2.imwrite(card_dir + slash + file_name + '-wrong.jpg', card)
+        return -2
+
+
 if __name__ == '__main__':
     slash = '\\' if platform.system() == "Windows" else '/'
 
@@ -271,6 +308,7 @@ if __name__ == '__main__':
     elif os.path.isdir(path):
         dir_path = path
         card_dir = dir_path + slash + 'card'
+        wrong_card_dir = card_dir + slash + 'wrong'
         fail_dir = dir_path + slash + 'fail'
         files = os.listdir(dir_path)
         img_files = []
@@ -286,34 +324,43 @@ if __name__ == '__main__':
             file_name, file_ext = os.path.splitext(img_files[i])
             file_path = dir_path + slash + img_files[i]
             img = cv2.imread(file_path)
+            print('[' + img_files[i] + ']')
+            retry_result = 0
             corner_points = find_corner(img)
 
             if corner_points == []:
-                corner_points = find_corner(img, b=1)
-                if corner_points == []:
+                # 失败重试...
+                retry_result = retry(img)
+                if isinstance(retry_result, int) and retry_result == -1:
                     fail_num += 1
-                    print('[' + img_files[i] + ']', '定位失败，未找到足够定位点！')
+                    print('定位失败，未找到足够定位点！')
                     # 将未识别到色卡的照片统一存储至fail文件夹
                     if not os.path.isdir(fail_dir):
                         os.makedirs(fail_dir)
                     cv2.imwrite(fail_dir + slash + file_name + '-fail.jpg', img)
                     continue
 
-            card = get_color_card(img, corner_points)
+            card = get_color_card(img, corner_points) if (isinstance(retry_result, int) and retry_result == 0) else retry_result
 
             # 检查卡片是否正常
             if not is_card_ok(card):
-                print('[' + img_files[i] + ']', '找到色卡，但色卡提取不正确！')
-                if not os.path.isdir(fail_dir):
-                    os.makedirs(fail_dir)
-                cv2.imwrite(fail_dir + slash + file_name + '-wrong.jpg', img)
-                wrong_num += 1
-            else:
-                print('[' + img_files[i] + ']', '找到色卡！')
-                if not os.path.isdir(card_dir):
-                    os.makedirs(card_dir)
-                cv2.imwrite(card_dir + slash + file_name + '-card' + '.jpg', card)
-                success_num += 1
+                if not retry_result:
+                    card = retry(img)
+                if not is_card_ok(card):
+                    print('找到色卡，但色卡提取不正确！')
+                    if not os.path.isdir(fail_dir):
+                        os.makedirs(fail_dir)
+                    if not os.path.isdir(wrong_card_dir):
+                        os.makedirs(wrong_card_dir)
+                    cv2.imwrite(fail_dir + slash + file_name + '-wrong.jpg', img)
+                    cv2.imwrite(wrong_card_dir + slash + file_name + '-card.jpg', card)
+                    wrong_num += 1
+                    continue
+            print('找到色卡！')
+            if not os.path.isdir(card_dir):
+                os.makedirs(card_dir)
+            cv2.imwrite(card_dir + slash + file_name + '-card.jpg', card)
+            success_num += 1
 
         print('success:', success_num)
         print('fail:', fail_num)
@@ -332,24 +379,36 @@ if __name__ == '__main__':
 
         corner_points = find_corner(img, debug=True)
 
+        retry_result = 0
         if not corner_points:
-            print("替换参数重试...")
-            corner_points = find_corner(img, b=1, debug=True)
-            if not corner_points:
-                print("未找到定位点！")
-                # 将未识别到色卡的照片统一存储至fail文件夹
+            retry_result = retry(img, debug=True)
+            if isinstance(retry_result, int):
                 if not os.path.isdir(fail_dir):
                     os.makedirs(fail_dir)
-                cv2.imwrite(fail_dir + slash + file_name + '-fail.jpg', img)
+                if retry_result == -1:
+                    print("未找到定位点！")
+                    # 将未识别到色卡的照片统一存储至fail文件夹
+                    cv2.imwrite(fail_dir + slash + file_name + '-fail.jpg', img)
+                else:
+                    cv2.imwrite(fail_dir + slash + file_name + '-wrong.jpg', img)
+                    print("不正常")
                 sys.exit()
 
-        card = get_color_card(img, corner_points)
+        card = get_color_card(img, corner_points) if (isinstance(retry_result, int) and retry_result == 0) else retry_result
         # 检查卡片是否正常
         if not is_card_ok(card):
-            if not os.path.isdir(fail_dir):
-                os.makedirs(fail_dir)
-            cv2.imwrite(fail_dir + slash + file_name + '-wrong.jpg', img)
-            print("不正常")
+            # print("替换参数重试...")
+            # corner_points = find_corner(img, blockSize=19, param_c=1, debug=True)
+            # card = get_color_card(img, corner_points)
+            # if not is_card_ok(card):
+            #     if not os.path.isdir(fail_dir):
+            #         os.makedirs(fail_dir)
+            if not retry_result:
+                card = retry(img, debug=True)
+            if not is_card_ok(card):
+                cv2.imwrite(fail_dir + slash + file_name + '-wrong.jpg', img)
+                print("不正常")
+                sys.exit()
         if not os.path.isdir(card_dir):
             os.makedirs(card_dir)
         cv2.imwrite(card_dir + slash + file_name + '-card' + '.jpg', card)

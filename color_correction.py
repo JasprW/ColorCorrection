@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2018-12-26, 10:18:48
+# @Last modified time: 2019-03-14, 10:18:08
 
 import os
 import sys
@@ -231,26 +231,36 @@ if __name__ == '__main__':
     img = cv2.imread(file_path)
 
     # 定位色卡并进行透视变换为正视图
-    points = find_corner(img)
-    if not points:
+    corner_points = find_corner(img)
+    retry_result = 0
+    if not corner_points:
         # 替换参数重试一次
-        points = find_corner(img, b=1)
-        if not points:
-            print('未找到定位点！图片存储至:', fail_dir)
+        retry_result = retry(img)
+        if isinstance(retry_result, int):
             if not os.path.isdir(fail_dir):
                 os.makedirs(fail_dir)
-            cv2.imwrite(fail_dir + slash + file_name + '-fail' + file_ext, img)
+            if retry_result == -1:
+                print('未找到定位点！图片存储至:', fail_dir)
+                cv2.imwrite(fail_dir + slash + file_name + '-fail' + file_ext, img)
+            else:
+                if not os.path.isdir(fail_dir):
+                    os.makedirs(fail_dir)
+                print('找到色卡但色卡不正常！图片存储至:', fail_dir)
+                cv2.imwrite(fail_dir + slash + file_name + '-wrong.jpg', img)
             sys.exit()
 
-    color_card = get_color_card(img, points)
+    color_card = get_color_card(img, corner_points) if (isinstance(retry_result, int) and retry_result == 0) else retry_result
 
     # 判断色卡提取是否正常
     if not is_card_ok(color_card):
-        print('找到色卡但色卡不正常！图片存储至:', fail_dir)
-        if not os.path.isdir(fail_dir):
-            os.makedirs(fail_dir)
-        cv2.imwrite(fail_dir + slash + file_name + '-wrong' + file_ext, img)
-        sys.exit()
+        if not retry_result:
+            color_card = retry(img, debug=True)
+        if not is_card_ok(color_card):
+            print('找到色卡但色卡不正常！图片存储至:', fail_dir)
+            if not os.path.isdir(fail_dir):
+                os.makedirs(fail_dir)
+            cv2.imwrite(fail_dir + slash + file_name + '-wrong' + file_ext, img)
+            sys.exit()
 
     # 检测色卡是否翻转、镜像或翻转+镜像，并对其进行相应变换
     if is_upsideDown_and_mirrorred(color_card):
