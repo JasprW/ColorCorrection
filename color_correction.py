@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2019-03-14, 10:18:08
+# @Last modified time: 2019-03-14, 17:14:48
 
 import os
 import sys
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     # 判断色卡提取是否正常
     if not is_card_ok(color_card):
         if not retry_result:
-            color_card = retry(img, debug=True)
+            color_card = retry(img)
         if not is_card_ok(color_card):
             print('找到色卡但色卡不正常！图片存储至:', fail_dir)
             if not os.path.isdir(fail_dir):
