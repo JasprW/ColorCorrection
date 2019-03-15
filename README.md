@@ -9,15 +9,15 @@
 * param color_card: 透视校正完成的色卡图片
 * return: 色卡中的颜色色值，以矩阵格式存储，color_matrix，shape: (3 , 24)
 
-### find_corner(img, b=2, debug=False)
+### find_corner(img, blockSize=13, param_c=2, debug=False)
 获取色卡四角的定位点
 * param img: 输入图像
-* param b: Adaptive Threshold 参数
+* param blockSize: Adaptive Threshold 参数 blockSize
+* param param_c: Adaptive Threshold 参数 C
 * param debug: 是否使用debug模式，输出各步骤结果和图片
 * return: 四个角点坐标
 
 ### get_color_card(img, points)
-
 通过角点提取色卡部分，并对色卡进行透视校正，返回校正后色卡正视图
 
 * param img: 输入图像

@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T13:19:21+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2019-03-14, 15:15:49
+# @Last modified time: 2019-03-15, 14:26:59
 
 import os
 import sys
@@ -13,6 +13,11 @@ from card_verify import is_card_ok
 
 
 def image_show(name, img):
+    """
+    GUI显示图片
+    :param name: 窗口标题
+    :img: 需要显示的图片
+    """
     cv2.namedWindow(name, cv2.WINDOW_NORMAL)
     cv2.imshow(name, img)
     cv2.waitKey(0)
@@ -74,6 +79,12 @@ def is_duplicate(c, contours):
 
 
 def is_rect(contour, rate=0.8):
+    """
+    判断轮廓是否为矩形
+    :param contour: 对其判断的轮廓
+    :param rate: 轮廓长短边比值的判断阈值
+    :return: 轮廓contour是否为矩形，bool，是矩形返回True，不是返回False
+    """
     rect = cv2.minAreaRect(contour)
     w = rect[1][0]
     h = rect[1][1]
@@ -105,14 +116,12 @@ def find_corner(img, blockSize=13, param_c=2, debug=False):
     """
     获取色卡四角的定位点
     :param img: 输入图像
-    :param b: Adaptive Threshold 参数
+    :param blockSize: Adaptive Threshold 参数 blockSize
+    :param param_c: Adaptive Threshold 参数 C
     :param debug: 是否使用debug模式，输出各步骤结果和图片
     :return: 四个角点坐标
     """
     gray = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
-    # _, binary = cv2.threshold(
-    #     gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    # _, binary = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
 
     # 使用自适应二值化避免过曝影响定位点识别
     blurred = cv2.GaussianBlur(gray, (13, 13), 0)
@@ -123,15 +132,12 @@ def find_corner(img, blockSize=13, param_c=2, debug=False):
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
-    # blur = cv2.GaussianBlur(dilated, (9, 9), 0)
     blur = binary
     edges = cv2.Canny(blur, 100, 300)
 
     _, contours, hierarchy = cv2.findContours(
         edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    # if len(contours) == 0:
-    #     return []
     hierarchy = hierarchy[0]
     found = []
     found = set(found)
@@ -155,8 +161,6 @@ def find_corner(img, blockSize=13, param_c=2, debug=False):
 
                 # 超过n层则判断为定位点，默认4层
                 if c >= 4:
-                    # cv2.drawContours(img_test, contours, i,
-                    #                  (0, 0, 255), 3, cv2.LINE_AA)
                     found.add(i)
                     break
 
@@ -170,8 +174,6 @@ def find_corner(img, blockSize=13, param_c=2, debug=False):
 
     if len(contours) < 4:
         if debug is True:
-            # image_show("binary", binary)
-            # image_show("edges", edges)
             for i in range(len(contours)):
                 cv2.drawContours(img_test, contours, i,
                                  (0, 0, 255), 4, cv2.LINE_AA)
@@ -195,15 +197,12 @@ def find_corner(img, blockSize=13, param_c=2, debug=False):
         candidate_contours = candidate_contours[0:4]
 
     if debug is True:
-        # image_show("binary", binary)
-        # image_show("edges", edges)
         for i in range(len(contours)):
             cv2.drawContours(img_test, contours, i,
                              (0, 0, 255), 4, cv2.LINE_AA)
         image_show("test", img_test)
 
     if len(candidate_contours) < 4:
-        # if param_c == 1:
         if debug:
             print("仅找到", len(candidate_contours), "个定位点")
         return []
@@ -244,7 +243,6 @@ def get_color_card(img, points):
     pts2 = np.float32([[0, 0], [1000, 0], [0, 750], [1000, 750]])
     transform = cv2.getPerspectiveTransform(pts1, pts2)
     warpedimg = cv2.warpPerspective(img, transform, (1000, 750))
-    # image_show("color card", warpedimg)
 
     # 设定裁剪边距，完全去除定位标志
     padding = np.int0(warpedimg.shape[0] * 0.06)
@@ -257,6 +255,12 @@ def get_color_card(img, points):
 
 
 def retry(img, debug=False):
+    """
+    找不到色卡或色卡不正确时调整 Adaptive Threshold 的参数进行重试
+    :param img: 待寻找色卡的图片
+    :param debug: 是否使用debug模式，输出中间步骤结果
+    :return: 未找到足够定位点返回-1，找到的色卡不正常返回-2，正常返回色卡图片（矩阵）
+    """
     blockSize = 19
     param_c = 1
     retry_time = 6
@@ -397,15 +401,9 @@ if __name__ == '__main__':
         card = get_color_card(img, corner_points) if (isinstance(retry_result, int) and retry_result == 0) else retry_result
         # 检查卡片是否正常
         if not is_card_ok(card):
-            # print("替换参数重试...")
-            # corner_points = find_corner(img, blockSize=19, param_c=1, debug=True)
-            # card = get_color_card(img, corner_points)
-            # if not is_card_ok(card):
-            #     if not os.path.isdir(fail_dir):
-            #         os.makedirs(fail_dir)
             if not retry_result:
                 card = retry(img, debug=True)
-            if not is_card_ok(card):
+            if isinstance(card, int) or not is_card_ok(card):
                 cv2.imwrite(fail_dir + slash + file_name + '-wrong.jpg', img)
                 print("不正常")
                 sys.exit()

@@ -2,7 +2,7 @@
 # @Date:   2018-11-29T10:11:16+08:00
 # @Email:  wang@jaspr.me
 # @Last modified by:   Jaspr
-# @Last modified time: 2019-03-14, 17:14:48
+# @Last modified time: 2019-03-15, 14:15:59
 
 import os
 import sys
@@ -42,10 +42,10 @@ def get_polynomial(R, G, B):
     G = int(G)
     B = int(B)
 
-    # 十项多项式（灰度偏淡）
+    # 十项多项式
     # return [1, R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
-    # 九项多项式（灰度偏深）
+    # 九项多项式
     return [R, G, B, R * G, R * B, B * G, R * R, B * B, G * G]
 
     # 十五项多项式
@@ -213,10 +213,6 @@ if __name__ == '__main__':
             print("未找到文件")
     else:
         print("参数数量错误")
-        # file_path = '/Users/Jaspr/Desktop/test/28.jpg'
-        # file_name = os.path.splitext(os.path.basename(file_path))[0]
-        # file_ext = os.path.splitext(os.path.basename(file_path))[1]
-        # dir_name = os.path.dirname(file_path)
 
     output_dir = dir_name + slash + 'output'
     fail_dir = dir_name + slash + 'fail'
@@ -225,7 +221,6 @@ if __name__ == '__main__':
 
     # 载入标准色卡数据
     std_matrix = get_stdColor_value()
-    # real_matrix = get_realColor_value()
 
     # 载入测试色卡图像，生成回归输入数据
     img = cv2.imread(file_path)
@@ -234,7 +229,7 @@ if __name__ == '__main__':
     corner_points = find_corner(img)
     retry_result = 0
     if not corner_points:
-        # 替换参数重试一次
+        # 替换参数重试
         retry_result = retry(img)
         if isinstance(retry_result, int):
             if not os.path.isdir(fail_dir):
@@ -255,7 +250,7 @@ if __name__ == '__main__':
     if not is_card_ok(color_card):
         if not retry_result:
             color_card = retry(img)
-        if not is_card_ok(color_card):
+        if isinstance(color_card, int) or not is_card_ok(color_card):
             print('找到色卡但色卡不正常！图片存储至:', fail_dir)
             if not os.path.isdir(fail_dir):
                 os.makedirs(fail_dir)
